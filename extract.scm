@@ -171,6 +171,12 @@
                  ,@(filter (lambda (clause)
                              (memq (car clause) '(open files)))
                            clauses)))
+    ((list-rest name interface clauses)
+     `(structure (@ (name ,name))
+                 (interface ,interface)
+                 ,@(filter (lambda (clause)
+                             (memq (car clause) '(open files)))
+                           clauses)))
     (else
      (raise-extract-error "unmatched define-structure"))))
 

@@ -78,16 +78,18 @@
           `((,typex ,attlist))))))
 
 (define (interface-exported-names interface)
-  (let loop ((in (cdar interface)) (out '()))
-    (if (null? in)
-        out
-        (let ((elt (car in)))
-          (cond ((and (pair? elt) (pair? (car elt)))
-                 (loop (cdr in) (append (car elt) out)))
-                ((pair? elt)
-                 (loop (cdr in) (cons (car elt) out)))
-                (else
-                 (loop (cdr in) (cons elt out))))))))
+  (let ((exports (cond ((null? (cdr interface)) '()) ;; FIXME
+                       (else (cdar interface)))))
+    (let loop ((in exports) (out '()))
+      (if (null? in)
+          out
+          (let ((elt (car in)))
+            (cond ((and (pair? elt) (pair? (car elt)))
+                   (loop (cdr in) (append (car elt) out)))
+                  ((pair? elt)
+                   (loop (cdr in) (cons (car elt) out)))
+                  (else
+                   (loop (cdr in) (cons elt out)))))))))
 
 (define (filter-bindings interface bindings)
   (let ((names (interface-exported-names interface)))
