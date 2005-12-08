@@ -1,0 +1,91 @@
+library => @ name
+           group <code [structure]>
+group => code
+         documentation
+code  => group
+         procedure
+	 variable
+structure => @ name
+	     interface
+	     open
+	     files
+	     bindings
+bindings => group
+
+=====
+
+(library foo
+  (group
+    (structure (@ (name foo.bar))
+		  (interface ...)
+		  (files ...))
+    ...
+    (documentation <docs>)
+  ...
+  (documentation ...)))
+
+(library foo
+   (group
+    (structure (@ (name foo.bar))
+	          (interface ...)
+		  (bindings
+		    (group
+		      (procedure ...)
+		      (documentation ...))
+		    ...))
+    ...
+    (documentation <docs-for-foo.bar>))
+  ...
+  (documentation <docs-for-foo>)))
+
+=====
+
+(structure foo.bar (@ (name foo.bar))
+                   (interface ...)
+		   (open ...)
+		   (files ...))
+
+(group
+  (structure (@ (name foo.bar))
+	     (interface ...)
+	     (open ...)
+	     (bindings
+	       (group
+	         (procedure ...)
+		 ...
+		 (documentation ...))
+	       ...))
+  (documentation <docs-for-foo.bar>))
+
+===
+
+(library foo
+   (group
+    (structure (@ (name foo.bar))
+	          (interface ...)
+		  (bindings
+		    (group
+		      (procedure ...)
+		      (documentation ...))
+		    ...))
+    ...
+    (documentation <docs-for-foo.bar>))
+  ...
+  (documentation <docs-for-foo>)))
+
+(html
+  (body
+    (dl (dt "foo.bar") ...
+        (dd "<docs-for-foo.bar")
+	...)))
+
+====
+
+(group
+  (procedure (@ (name foo) (arguments x y z)))
+  (procedure (@ (name bar) (arguments x y)))
+  (documentation ...))
+
+(defun (% (name "foo") (arguments "x" "y" "z"))
+  (defunx (% (name "bar") (arguments "x" "y")))
+  ...)
