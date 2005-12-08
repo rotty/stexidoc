@@ -1,7 +1,10 @@
+(define nl (string #\newline))
+
 (define xhtml-doctype
   (string-append
    "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" "
-   "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n"))
+   "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">"
+   nl nl))
 
 (define (spedl->html lib-name spedl directory)
   (call-with-output-file (make-path directory "index.html")

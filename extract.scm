@@ -1,3 +1,5 @@
+(define nl (string #\newline))
+
 (define/optional-args (scheme->spedl extractors
                                      (optional (port (current-input-port))))
   (let ((comments '())
@@ -121,12 +123,12 @@
         (case mode
           ((verbatim) (values #t (string-join (map (lambda (line)
                                                      (string-trim line #\;))
-                                                   comments) "\n")))
+                                                   comments) nl)))
           ((schmooz)
            (let loop ((comments comments)
                       (result '()))
              (if (null? comments)
-                 (values #f (string-join (reverse result) "\n"))
+                 (values #f (string-join (reverse result) nl))
                  (let* ((comment (car comments))
                         (line (cond ((match* lead-junk comment)
                                      => (lambda (matches)
