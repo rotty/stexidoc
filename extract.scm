@@ -1,49 +1,48 @@
 (define nl (string #\newline))
 
-(define/optional-args (scheme->spedl extractors
-                                     (optional (port (current-input-port))))
-  (let ((comments '())
-        (extracted '()))
-    (define (maybe-emit-documentation!)
-      (and (not (null? extracted))
-           (receive (override? texi-fragment) (schmooz (reverse comments)
-                                                       (car extracted))
-             (let ((docs `(group ,@(if override? '() (reverse extracted))
-                                 (documentation
-                                  ,@(cdr (texi-fragment->stexi texi-fragment))))))
-               (set! extracted '())
-               (set! comments '())
-               docs))))
-    (pre-post-order
-     (read-scheme-code port)
-     `((form *preorder* .
-             ,(lambda (tag form)
-                (guard
-                 (c
-                  ((message-condition? c)
-                   (format #t "while processing ~s: ~s" form
-                           (condition-message c))
-                   (set! extracted '())
-                   (set! comments '())))
-                 (let ((result (cond
-                                ((and (pair? form)
-                                      (assq (car form) extractors)) =>
-                                      (lambda (x) ((cdr x) form)))
-                                (else #f))))
-                   (if result
-                       (set! extracted (cons result extracted)))
-                   #f))))
-       (comment *preorder* .
-                ,(lambda (tag comment)
-                   (let ((docs (maybe-emit-documentation!)))
-                     (set! comments (cons comment comments))
-                     docs)))
-       (*fragment* . ,(lambda (tag . subs)
-                        `(*fragment*
-                          ,@(filter (lambda (x) x)
-                                    (cons (maybe-emit-documentation!) subs)))))
-       (*text* . ,(lambda (tag text) text))
-       (*default* . ,(lambda args args))))))
+(define scheme->spedl
+  (opt-lambda (extractors (port (current-input-port)))
+    (let ((comments '())
+          (extracted '()))
+      (define (maybe-emit-documentation!)
+        (and (not (null? extracted))
+             (receive (override? texi-fragment) (schmooz (reverse comments)
+                                                         (car extracted))
+               (let ((docs `(group (items ,@(if override? '() (reverse extracted)))
+                                   (documentation
+                                    ,@(cdr (texi-fragment->stexi texi-fragment))))))
+                 (set! extracted '())
+                 (set! comments '())
+                 docs))))
+      (pre-post-order
+       (read-scheme-code port)
+       `((form *preorder* .
+               ,(lambda (tag form)
+                  (guard
+                   (c
+                    ((message-condition? c)
+                     (format #t "while processing ~s: ~s" form
+                             (condition-message c))
+                     (set! extracted '())
+                     (set! comments '())))
+                   (let ((result (cond
+                                  ((and (pair? form)
+                                        (assq (car form) extractors)) =>
+                                        (lambda (x) ((cdr x) form)))
+                                  (else #f))))
+                     (if result
+                         (set! extracted (cons result extracted)))
+                     #f))))
+         (comment *preorder* .
+                  ,(lambda (tag comment)
+                     (let ((docs (maybe-emit-documentation!)))
+                       (set! comments (cons comment comments))
+                       docs)))
+         (*fragment* . ,(lambda (tag . subs)
+                          `(*fragment*
+                            ,@(filter (lambda (x) x)
+                                      (cons (maybe-emit-documentation!) subs)))))
+         ,@universal-spedl-rules)))))
 
 
 (define-condition-type &extract-error &error
@@ -163,23 +162,6 @@
     (else
      (raise-extract-error "unmatched define-syntax"))))
 
-(define (extract-define-structure form)
-  (match (cdr form)
-    ((list-rest name (cons 'export exports) clauses)
-     `(structure (@ (name ,name))
-                 (interface (export ,@exports))
-                 ,@(filter (lambda (clause)
-                             (memq (car clause) '(open files)))
-                           clauses)))
-    ((list-rest name interface clauses)
-     `(structure (@ (name ,name))
-                 (interface ,interface)
-                 ,@(filter (lambda (clause)
-                             (memq (car clause) '(open files)))
-                           clauses)))
-    (else
-     (raise-extract-error "unmatched define-structure"))))
-
 (define (extract-define/optional-args form)
   (match (cadr form)
     ((list-rest name args)
@@ -198,7 +180,6 @@
 
 (define usual-spedl-extractors
   `((define . ,extract-define)
-    (define-structure . ,extract-define-structure)
     (define-syntax . ,extract-define-syntax)
     (define/optional-args . ,extract-define/optional-args)))
 

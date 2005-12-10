@@ -11,4 +11,8 @@
                 (else
                  (loop (cons (list elt) codes) docs (cdr elts))))))))
 
+(define universal-spedl-rules
+  `((*text* . ,(lambda (tag text) text))
+    (*default* . ,(lambda args args))))
+
 ;; arch-tag: 093180ca-4e45-4f17-8ecc-58b10e4d16b9

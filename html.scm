@@ -1,4 +1,6 @@
 (define nl (string #\newline))
+(define (delq key alist)
+  (remove (lambda (entry) (eq? key (car entry))) alist))
 
 (define xhtml-doctype
   (string-append
@@ -6,33 +8,85 @@
    "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">"
    nl nl))
 
-(define (spedl->html lib-name spedl directory)
+(define (spedl->html bundle-name spedl directory)
   (call-with-output-file (make-path directory "index.html")
     (lambda (port)
       (display xhtml-doctype port)
-      (sxml->xml 
-       (pre-post-order
-        spedl
-        `((library . ,(lambda (tag . groups)
-                        (wrap-html (string-append lib-name ": Structures")
-                                   lib-name
-                                   ".."
-                                   "../spe-doc.html"
-                                   `((table (@ (id "structures")) ,@groups)))))
-          (group *preorder* .
-                 ,(lambda (tag . subs)
-                    (let* ((struct (assq-ref subs 'structure))
-                           (struct-name (car (assq-ref (cdar struct) 'name)))
-                           (docs (assq-ref subs 'documentation)))
-                      (emit-structure-html! lib-name struct-name (cdr struct) docs directory)
-                      `((tr
-                         (td ,(markup-structure-name struct-name))
-                         (td ,(or (and (null? docs) "[Undocumented]")
-                                  (stexi->shtml (car docs)))))))))))
-       port))))
+      (sxml->xml (pre-post-order
+                  spedl
+                  (systems->html-rules bundle-name directory
+                                       (make-path directory "spe-doc")))
+                 port))))
 
-(define (library->html lib-name src-dir output-dir)
-  (spedl->html lib-name (library->spedl src-dir) output-dir))
+
+;                  ,(lambda (tag . subs)
+;                     (let* ((system (assq-ref subs 'system))
+;                            (system-name (car (assq-ref (cdar system) 'name)))
+;                            (structures (assq-ref system 'structures))
+;                            (docs (assq-ref subs 'documentation)))
+;                       `((h3 ,(symbol->string system-name))
+;                         ,(or (and (null? docs) "[Undocumented]")
+;                              (stexi->shtml (car docs)))
+;                         ,@(structures->shtml structures))))
+
+(define (systems->html title output-dir . sys-defs)
+  (spedl->html title (apply systems->spedl sys-defs) output-dir))
+
+(define (systems->html-rules title root-path scm-url)
+  `((items
+     ((group *macro* . ,(lambda (tag . subs)
+                          (let ((items (assq-ref subs 'items))
+                                (docs (assq 'documentation subs)))
+                            `(*systems
+                              ,@(map (lambda (item) (append item (list docs)))
+                                     items)))))
+      (*systems
+       ((system
+         ((@ *preorder* . ,list)
+          (items
+           ((group
+             ((items *preorder* .
+                     ,(lambda (tag . structures)
+                        `(dt ,@(append-map
+                                (lambda (struct)
+                                  `(,(markup-structure-name
+                                      (car (assq-ref (cdadr struct) 'name)))
+                                    (br)))
+                                structures))))
+              (documentation *preorder* .
+                             ,(lambda (tag . stexi)
+                                `(dd ,@(stexi->shtml stexi)))))
+             . ,(lambda (tag . subs) subs)))
+           . ,(lambda (tag . rows) `(dl (@ (id "structures")) ,@(concatenate rows))))
+          (documentation *preorder* . ,(lambda (tag . stexi)
+                                         `(documentation ,@(stexi->shtml stexi))))
+          (*default* . ,(lambda args #f)))
+         . ,(lambda (tag attr . subs)
+              ;;(for-each display `(,tag ,attr ,@subs #\newline))
+              (let* ((subs (filter values subs))
+                     (name (car (assq-ref (cdr attr) 'name)))
+                     (docs (assq-ref subs 'documentation)))
+                (list (symbol->string name) docs (delq 'documentation subs))))))
+       . ,(lambda (tag . systems)
+            (list
+             `(dl ,@(append-map
+                     (lambda (s)
+                       (let ((name (first s)))
+                         `((dt (a (@ (href ,(string-append "#" name))) ,name))
+                           (dd ,@(second s)))))
+                     systems))
+             (append-map (lambda (s)
+                           `((h2 (a (@ (name ,(first s)))) ,(first s))
+                             ,@(second s)
+                             (h3 "Structures")
+                             ,@(cddr s)))
+                         systems)))))
+     . ,(lambda (tag overview . shtmls)
+          (wrap-html title root-path scm-url
+                     `((h2 "Overview")
+                       ,@overview
+                       ,@(concatenate shtmls)))))
+    ,@universal-spedl-rules))
 
 (define (emit-structure-html! lib-name name subs docs directory)
   (let ((bindings (assq-ref subs 'bindings))
@@ -60,9 +114,9 @@
 
 (define (markup-structure-name name)
   (let ((name (symbol->string name)))
-    `(a (@ (href ,(append-extension name "html")) (class "structure")) ,name)))
+    `(a (@ (href ,(append-extension name "html")) (class "system")) ,name)))
 
-(define (wrap-html title heading root-path scm-url body)
+(define (wrap-html title root-path scm-url body)
   `(html (@ (xmlns "http://www.w3.org/1999/xhtml"))
     (head
      (title ,title)
@@ -74,9 +128,8 @@
        ");"))
     (body
      (div (@ (id "body"))
-          (h1 (@ (id "heading")) ,heading)
+          (h1 (@ (id "heading")) ,title)
           (div (@ (id "content"))
-               (h2 (@ (class "centered")) ,title)
                ,@body)
           (div (@ (id "footer"))
                "powered by "
