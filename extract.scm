@@ -1,5 +1,10 @@
 (define nl (string #\newline))
 
+(define universal-spedl-rules
+  `((*text* . ,(lambda (tag text) text))
+    (*default* . ,(lambda args args))))
+
+
 (define scheme->spedl
   (opt-lambda (extractors (port (current-input-port)))
     (let ((comments '())
@@ -20,8 +25,8 @@
                ,(lambda (tag form)
                   (guard
                    (c
-                    ((message-condition? c)
-                     (format #t "while processing ~s: ~s" form
+                    ((extract-error? c)
+                     (format #t "while processing ~s: ~s~%" form
                              (condition-message c))
                      (set! extracted '())
                      (set! comments '())))

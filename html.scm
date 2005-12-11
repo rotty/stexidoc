@@ -8,30 +8,81 @@
    "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">"
    nl nl))
 
-(define (spedl->html bundle-name spedl directory)
+(define (spedl->html title spedl directory)
   (call-with-output-file (make-path directory "index.html")
     (lambda (port)
       (display xhtml-doctype port)
       (sxml->xml (pre-post-order
                   spedl
-                  (systems->html-rules bundle-name directory
-                                       (make-path directory "spe-doc")))
+                  (systems->html-rules title "." "../spe-doc"))
                  port))))
 
 
-;                  ,(lambda (tag . subs)
-;                     (let* ((system (assq-ref subs 'system))
-;                            (system-name (car (assq-ref (cdar system) 'name)))
-;                            (structures (assq-ref system 'structures))
-;                            (docs (assq-ref subs 'documentation)))
-;                       `((h3 ,(symbol->string system-name))
-;                         ,(or (and (null? docs) "[Undocumented]")
-;                              (stexi->shtml (car docs)))
-;                         ,@(structures->shtml structures))))
+(define (systems->html title html-dir . sys-defs)
+  (let ((spedl (apply systems->spedl sys-defs)))
+    (spedl->html title spedl html-dir)
+    (spedl->structure-html title spedl html-dir)))
 
-(define (systems->html title output-dir . sys-defs)
-  (spedl->html title (apply systems->spedl sys-defs) output-dir))
+(define (for-each-structure proc spedl)
+  (let ((structures ((sxpath '(group items system items)) spedl)))
+    (pre-post-order
+     structures
+     `((items
+        ((group *macro* . ,(lambda (tag . subs)
+                             (let ((items (assq-ref subs 'items))
+                                   (docs (assq 'documentation subs)))
+                               `(*structures
+                                 ,@(filter-map
+                                    (lambda (item)
+                                      (and (pair? item)
+                                           (eq? (car item) 'structure)
+                                           `(*group ,item ,docs)))
+                                    items)))))
+         (*structures
+          ((*group
+            ((structure
+              ((@ *preorder* . ,list)
+               (files *preorder* .
+                      ,(lambda (tag . files)
+                         `(items ,@(snarf-files usual-spedl-extractors
+                                                files))))
+               (*default* *preorder* . ,list))
+              . ,list)
+             (documentation *preorder* . ,list)
+             (*default* *preorder* . ,(lambda args (write args) (newline) args)))
+            . ,(lambda (tag . subs)
+                 (proc (assq 'structure subs)
+                       (assq-ref subs 'documentation)))))
+          . ,(lambda args '())))
+        . ,(lambda args '()))))))
 
+(define (spedl->structure-html title spedl html-dir)
+  (for-each-structure
+   (lambda (struct stexi)
+     (let ((name (car (assq-ref (cdadr struct) 'name))))
+       (emit-structure-html title name (cddr struct) stexi html-dir)))
+   spedl))
+
+(define (emit-structure-html title name subs docs directory)
+  (let ((items (assq-ref subs 'items))
+        (name-str (symbol->string name)))
+    (if items
+        (call-with-output-file
+            (make-path directory
+                       (append-extension name-str  "html"))
+          (lambda (port)
+            (display xhtml-doctype port)
+            (sxml->xml
+             (wrap-html title
+                        "."
+                        "../spe-doc.html"
+                        (stexi->shtml
+                         (spedl->stexi `(group (items
+                                                (structure (@ (name ,name))
+                                                           ,@subs))
+                                               (documentation ,@docs)))))
+             port))))))
+                                 
 (define (systems->html-rules title root-path scm-url)
   `((items
      ((group *macro* . ,(lambda (tag . subs)
@@ -47,12 +98,15 @@
            ((group
              ((items *preorder* .
                      ,(lambda (tag . structures)
-                        `(dt ,@(append-map
-                                (lambda (struct)
-                                  `(,(markup-structure-name
-                                      (car (assq-ref (cdadr struct) 'name)))
-                                    (br)))
-                                structures))))
+                        `(dt ,@(concatenate
+                                (filter-map
+                                 (lambda (struct)
+                                   (and (pair? struct)
+                                        (eq? (car struct) 'structure)
+                                        `(,(markup-structure-name
+                                            (car (assq-ref (cdadr struct) 'name)))
+                                          (br))))
+                                 structures)))))
               (documentation *preorder* .
                              ,(lambda (tag . stexi)
                                 `(dd ,@(stexi->shtml stexi)))))
@@ -88,26 +142,6 @@
                        ,@(concatenate shtmls)))))
     ,@universal-spedl-rules))
 
-(define (emit-structure-html! lib-name name subs docs directory)
-  (let ((bindings (assq-ref subs 'bindings))
-        (name-str (symbol->string name)))
-    (if bindings
-        (call-with-output-file
-            (make-path directory
-                       (append-extension name-str  "html"))
-          (lambda (port)
-            (display xhtml-doctype port)
-            (sxml->xml
-             (wrap-html name-str
-                        `(a (@ href "index.html") "[" ,lib-name "]")
-                        ".."
-                        "../spe-doc.html"
-                        (stexi->shtml
-                         (spedl->stexi `(group (structure (@ (name ,name))
-                                                          ,@subs)
-                                               (documentation ,@docs)))))
-             port))))))
-                                 
 (define (process-documentation tag . subs)
   (lambda ()
     (values #f (stexi->shtml subs))))

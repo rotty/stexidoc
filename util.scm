@@ -1,18 +1,12 @@
-(define (collect-code+doc elts)
-  (let loop ((codes '()) (docs '()) (elts elts))
-    (if (null? elts)
-        (values (reduce append '() codes) (reduce append '() docs))
-        (let ((elt (car elts)))
-          (cond ((procedure? elt)
-                 (receive (c d) (elt)
-                   (loop (if c (cons c codes) codes)
-                         (if d (cons d docs) docs)
-                         (cdr elts))))
-                (else
-                 (loop (cons (list elt) codes) docs (cdr elts))))))))
-
-(define universal-spedl-rules
-  `((*text* . ,(lambda (tag text) text))
-    (*default* . ,(lambda args args))))
+(define (snarf-files extractors files)
+  (append-map
+   (lambda (file)
+     (pre-post-order
+      (call-with-input-file file
+        (lambda (port)
+          (scheme->spedl extractors port)))
+      `((*fragment* *preorder* . ,(lambda (tag . subs) subs))
+        ,@universal-spedl-rules)))
+   files))
 
 ;; arch-tag: 093180ca-4e45-4f17-8ecc-58b10e4d16b9
