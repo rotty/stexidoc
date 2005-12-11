@@ -2,9 +2,9 @@
                                          raise-extract-error
                                          usual-spedl-extractors
                                          universal-spedl-rules)
-  (open scheme srfi-1 srfi-8 srfi-13 srfi-23
-        spells.ascii spells.misc spells.opt-args
-        spells.format spells.parameter spells.condition
+  (open scheme srfi-1 srfi-8 srfi-13 srfi-14 
+        spells.ascii spells.misc spells.opt-args spells.error
+        spells.format spells.parameter spells.condition spells.alist
         spells.match spells.pregexp spells.port
         sxml.transform sxml.sxpath
         texinfo.stexi
@@ -34,8 +34,8 @@
   (files texi))
 
 (define-structure spedoc.html (export systems->html)
-  (open scheme srfi-1 srfi-8
-        spells.file spells.alist 
+  (open scheme srfi-1 srfi-8 srfi-13
+        spells.file spells.alist spells.parameter spells.error
         sxml.simple sxml.transform sxml.sxpath
         texinfo.html
         spedoc.util spedoc.system spedoc.texi spedoc.extract)

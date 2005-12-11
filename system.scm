@@ -98,6 +98,7 @@
 
 (define (fspec-comp->path-comp fspec-comp)
   (cond ((symbol? fspec-comp) (symbol->string fspec-comp))
+        ((pair? fspec-comp) (apply make-path (map fspec-comp->path-comp fspec-comp)))
         (else fspec-comp)))
 
 (define (filespec->path filespec)

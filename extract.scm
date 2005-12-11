@@ -10,15 +10,16 @@
     (let ((comments '())
           (extracted '()))
       (define (maybe-emit-documentation!)
-        (and (not (null? extracted))
-             (receive (override? texi-fragment) (schmooz (reverse comments)
-                                                         (car extracted))
-               (let ((docs `(group (items ,@(if override? '() (reverse extracted)))
-                                   (documentation
-                                    ,@(cdr (texi-fragment->stexi texi-fragment))))))
-                 (set! extracted '())
-                 (set! comments '())
-                 docs))))
+        (if (null? extracted)
+            '()
+            (receive (override? texi-fragment) (schmooz (reverse comments)
+                                                        (car extracted))
+              (let ((docs `(group (items ,@(if override? '() (reverse extracted)))
+                                  (documentation
+                                   ,@(cdr (texi-fragment->stexi texi-fragment))))))
+                (set! extracted '())
+                (set! comments '())
+                (list docs)))))
       (pre-post-order
        (read-scheme-code port)
        `((form *preorder* .
@@ -37,16 +38,23 @@
                                   (else #f))))
                      (if result
                          (set! extracted (cons result extracted)))
-                     #f))))
+                     '()))))
          (comment *preorder* .
                   ,(lambda (tag comment)
                      (let ((docs (maybe-emit-documentation!)))
-                       (set! comments (cons comment comments))
-                       docs)))
+                       (cond
+                        ((pregexp-match-positions "^;*\\s@(sub)*section" comment)
+                         `(,@docs
+                           (group (items)
+                                  (documentation
+                                   ,@(cdr (texi-fragment->stexi
+                                           (string-trim comment #\;)))))))
+                        (else
+                         (set! comments (cons comment comments))
+                         docs)))))
          (*fragment* . ,(lambda (tag . subs)
                           `(*fragment*
-                            ,@(filter (lambda (x) x)
-                                      (cons (maybe-emit-documentation!) subs)))))
+                            ,@(concatenate (cons (maybe-emit-documentation!) subs)))))
          ,@universal-spedl-rules)))))
 
 
@@ -125,9 +133,10 @@
                           (values comments (caar starts))
                           (next-start (cdr starts)))))))
         (case mode
-          ((verbatim) (values #t (string-join (map (lambda (line)
-                                                     (string-trim line #\;))
-                                                   comments) nl)))
+          ((verbatim)
+           (values #t (string-join (map (lambda (line)
+                                          (string-trim line (char-set #\; #\space)))
+                                        comments) nl)))
           ((schmooz)
            (let loop ((comments comments)
                       (result '()))

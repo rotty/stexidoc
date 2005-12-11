@@ -8,6 +8,15 @@
    "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">"
    nl nl))
 
+(define (urlify str)
+  (string-downcase
+   (string-map
+    (lambda (c)
+      (case c
+        ((#\space #\/ #\:) #\-)
+        (else c)))
+    str)))
+
 (define (spedl->html title spedl directory)
   (call-with-output-file (make-path directory "index.html")
     (lambda (port)
@@ -17,11 +26,19 @@
                   (systems->html-rules title "." "../spe-doc"))
                  port))))
 
+(define (spedl-resolve-ref node-name manual-name)
+  (let* ((node-parts (string-tokenize node-name))
+         (ref  (case (length node-parts)
+                 ((1) (list "#" node-name))
+                 ((2) (list (first node-parts) ".html#" (second node-parts)))
+                 (else #f))))
+    (and ref (urlify (string-concatenate (cons (or manual-name "")  ref))))))
 
 (define (systems->html title html-dir . sys-defs)
   (let ((spedl (apply systems->spedl sys-defs)))
-    (spedl->html title spedl html-dir)
-    (spedl->structure-html title spedl html-dir)))
+    (parameterize ((stexi-ref-resolvers (list spedl-resolve-ref)))
+      (spedl->html title spedl html-dir)
+      (spedl->structure-html title spedl html-dir))))
 
 (define (for-each-structure proc spedl)
   (let ((structures ((sxpath '(group items system items)) spedl)))
@@ -97,21 +114,25 @@
           (items
            ((group
              ((items *preorder* .
-                     ,(lambda (tag . structures)
-                        `(dt ,@(concatenate
-                                (filter-map
-                                 (lambda (struct)
-                                   (and (pair? struct)
-                                        (eq? (car struct) 'structure)
-                                        `(,(markup-structure-name
-                                            (car (assq-ref (cdadr struct) 'name)))
-                                          (br))))
-                                 structures)))))
+                     ,(lambda (tag . subs)
+                        (let ((markup (filter-map
+                                       (lambda (sub)
+                                         (and (pair? sub)
+                                              (eq? (car sub) 'structure)
+                                              `(,(markup-structure-name
+                                                  (car (assq-ref (cdadr sub) 'name)))
+                                                (br))))
+                                       subs)))
+                          (and (not (null? markup))
+                               `(dt ,@(concatenate markup))))))
               (documentation *preorder* .
                              ,(lambda (tag . stexi)
                                 `(dd ,@(stexi->shtml stexi)))))
-             . ,(lambda (tag . subs) subs)))
-           . ,(lambda (tag . rows) `(dl (@ (id "structures")) ,@(concatenate rows))))
+             . ,(lambda (tag items docs)
+                  (if items
+                      `(data ,items ,docs)
+                      `(break ,@(cdr docs))))))
+           . ,(lambda (tag . rows) (sectioned-list "structures" rows)))
           (documentation *preorder* . ,(lambda (tag . stexi)
                                          `(documentation ,@(stexi->shtml stexi))))
           (*default* . ,(lambda args #f)))
@@ -142,13 +163,30 @@
                        ,@(concatenate shtmls)))))
     ,@universal-spedl-rules))
 
-(define (process-documentation tag . subs)
-  (lambda ()
-    (values #f (stexi->shtml subs))))
-
 (define (markup-structure-name name)
   (let ((name (symbol->string name)))
     `(a (@ (href ,(append-extension name "html")) (class "system")) ,name)))
+
+(define (sectioned-list id rows)
+  (define (dl items)
+    `(dl ,@(concatenate (reverse items))))
+  (let loop ((items '()) (markup '()) (rows rows))
+    (cond ((and (null? rows) (null? items))
+           `(div (@ (id ,id)) ,@(reverse markup)))
+          ((null? rows)
+           (loop '() (cons (dl items) markup) rows))
+          (else
+           (case (caar rows)
+             ((data)
+              (loop (cons (cdar rows) items) markup (cdr rows)))
+             ((break)
+              (if (null? items)
+                  (loop '() (append (cdar rows) markup) (cdr rows))
+                  (loop '()
+                        (append (cdar rows) (list (dl items)) markup)
+                        (cdr rows))))
+             (else
+              (error "unexpected tag" (caar rows))))))))
 
 (define (wrap-html title root-path scm-url body)
   `(html (@ (xmlns "http://www.w3.org/1999/xhtml"))
