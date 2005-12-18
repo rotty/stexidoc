@@ -65,9 +65,8 @@
              (vector-set! vec i (argspec->str lst))
              vec)))))
 
-(define (expand-arg-macros matches line code)
-  (let ((args (arglist->str-vector (cdar ((sxpath '(// @ arguments)) code))))
-        (name (cadar ((sxpath '(// @ name)) code))))
+(define (expand-arg-macros matches line args code)
+  (let ((name (cadar ((sxpath '(// @ name)) code))))
     (let loop ((pos 0) (matches matches) (results '()))
       (if (null? matches)
           (apply string-append
@@ -98,17 +97,37 @@
           (loop (cdar match) (cons (car match) matches))
           (and (not (null? matches)) (reverse matches))))))
 
+(define (arg-extended-items items args)
+  `(items
+    ,@(cond (args
+             (map (lambda (item)
+                    (match item
+                      ((list-rest name (list-rest '@ attributes) clauses)
+                       `(,name
+                         (@ ,@attributes
+                            (arguments ,@(map string->symbol (vector->list args))))
+                         ,@clauses))
+                      (else item)))
+                  items))
+            (else items))))
+
 (define schmooz
-  (let ((starts `((verbatim . ,(pregexp "^;*\\s*@(def|(sub)*section)"))
-                  (schmooz . ,(pregexp "^;*@"))))
+  (let ((starts `((verbatim . ,(pregexp "^;*\\s*@(def|(sub)*(section|heading))"))
+                  (stop     . ,(pregexp "^;*@stop\\s*$"))
+                  (args     . ,(pregexp "^;*@args(\\s+|$)"))
+                  (schmooz . ,(pregexp "^;*@\\s+"))))
         (lead-junk (pregexp "^(;*@\\s*|;+\\s*|;*\\s+)")))
     (lambda (comments extracted)
-      (let loop ((mode 'skip) (collected '()) (spedls '()) (comments comments))
+      (let loop ((mode 'skip)
+                 (args #f)
+                 (collected '())
+                 (spedls '())
+                 (comments comments))
         (define (generate)
           (let* ((stexi (cdr (texi-fragment->stexi
                               (string-join (reverse collected) nl))))
                  (spedl (cond ((and (not (null? extracted)) (eq? mode 'schmooz))
-                               `(group (items ,@extracted)
+                               `(group ,(arg-extended-items extracted args)
                                        (documentation ,@stexi)))
                               (else `(documentation ,@stexi)))))
             spedl))
@@ -116,7 +135,7 @@
          ((and (null? comments) (null? collected))
           spedls)
          ((null? comments)
-          (loop mode '() (cons (generate) spedls) comments))
+          (loop mode args '() (cons (generate) spedls) comments))
          (else
           (let* ((line (car comments))
                  (line-kind (let next-start ((starts starts))
@@ -125,35 +144,61 @@
                                      (if (pregexp-match (cdar starts) line)
                                          (caar starts)
                                          (next-start (cdr starts)))))))
-            (case mode
-              ((skip)
-               (if (eq? line-kind 'regular)
-                   (loop 'skip collected spedls (cdr comments))
-                   (loop line-kind collected spedls comments)))
-              ((verbatim)
-               (if (eq? line-kind 'schmooz)
-                   (loop 'schmooz '() (cons (generate) spedls) comments)
-                   (loop mode
-                         (cons (string-trim line (char-set #\; #\space)) collected)
+            (if (eq? line-kind 'stop)
+                (loop 'skip args '() (cons (generate) spedls) (cdr comments))
+                (case mode
+                  ((skip)
+                   (if (eq? line-kind 'regular)
+                       (loop 'skip #f collected spedls (cdr comments))
+                       (loop line-kind
+                             (let ((args
+                                    (and (not (null? extracted))
+                                         ((sxpath '(// @ arguments)) (car extracted)))))
+                               (and args (not (null? args))
+                                    (arglist->str-vector (cdar args))))
+                             collected
+                             spedls
+                             comments)))
+                  ((verbatim)
+                   (if (eq? line-kind 'schmooz)
+                       (loop 'schmooz args '() (cons (generate) spedls) comments)
+                       (loop mode
+                             #f
+                             (cons (string-trim line (char-set #\; #\space)) collected)
+                             spedls
+                             (cdr comments))))
+                  ((args)
+                   (loop 'schmooz
+                         (let ((space-pos (string-index line #\space)))
+                           (and space-pos
+                                (list->vector
+                                 (string-tokenize
+                                  (substring/shared line
+                                                    (+ space-pos 1)
+                                                    (string-length line))
+                                  char-set:graphic))))
+                         collected
                          spedls
-                         (cdr comments))))
-              ((schmooz)
-               (let ((line (cond ((match* lead-junk line)
-                                  => (lambda (matches)
-                                        (substring line
-                                                   (cdar matches)
-                                                   (string-length line))))
-                                 (else line))))
-                 (cond
-                  ((match* "@[0-9]+" line)
-                   => (lambda (matches)
-                        (loop mode
-                              (cons (expand-arg-macros matches line (car extracted))
-                                    collected)
-                              spedls
-                              (cdr comments))))
-                  (else
-                   (loop mode (cons line collected) spedls (cdr comments))))))))))))))
+                         (cdr comments)))
+                  ((schmooz)
+                   (let ((line (cond ((match* lead-junk line)
+                                      => (lambda (matches)
+                                           (substring line
+                                                      (cdar matches)
+                                                      (string-length line))))
+                                     (else line))))
+                     (cond
+                      ((match* "@[0-9]+" line)
+                       => (lambda (matches)
+                            (loop mode
+                                  args
+                                  (cons (expand-arg-macros matches line args
+                                                           (car extracted))
+                                        collected)
+                                  spedls
+                                  (cdr comments))))
+                      (else
+                       (loop mode args (cons line collected) spedls (cdr comments)))))))))))))))
 
 (define (extract-define form)
   (match (cdr form)

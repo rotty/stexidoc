@@ -23,13 +23,16 @@
                         (let ((name (car (assq-ref (cdr attlist) 'name)))
                               (bindings (assq-ref subs 'items))
                               (interface (assq-ref subs 'interface)))
-                          `(structure* ,@(filter-bindings interface bindings)))))
+                          `(structure* ,@(filter-items interface bindings)))))
          (structure* . ,(lambda (tag . items)
                           (lambda (to-wrap)
                             `((section "Overview")
                               ,@to-wrap
                               (section "Usage")
-                              ,@items))))
+                              ,@(append-map (lambda (proc)
+                                              (cond ((procedure? proc) (proc #f))
+                                                    (else proc)))
+                                            items)))))
          (procedure . ,(make-def 'defun 'defunx))
          (arguments *preorder* .
                     ,(lambda (tag . args)
@@ -51,7 +54,7 @@
          ,@universal-spedl->stexi-rules)
         . ,(lambda (tag . procs)
              (lambda (to-wrap)
-               (map (lambda (proc) (proc to-wrap)) procs))))
+               (append-map (lambda (proc) (proc to-wrap)) procs))))
        (documentation *preorder* . ,(lambda (tag . subs)
                                       (lambda (to-wrap) subs)))
        ,@universal-spedl->stexi-rules)
@@ -65,25 +68,24 @@
   (lambda (tag attlist . subs)
     (lambda (to-wrap)
       (if to-wrap
-          `(deffn (% (category ,category) ,@(cdr attlist))
-             ,@to-wrap)
+          `((deffn (% (category ,category) ,@(cdr attlist)) ,@to-wrap))
           `((deffnx (% (category ,category) ,@(cdr attlist))))))))
 
 (define (make-def type typex)
   (lambda (tag attlist . subs)
     (lambda (to-wrap)
       (if to-wrap
-          `(,type ,attlist ,@to-wrap)
+          `((,type ,attlist ,@to-wrap))
           `((,typex ,attlist))))))
 
-(define (filter-bindings interface bindings)
+(define (filter-items interface items)
   (let ((names (interface-exported-names interface)))
     (define (do-filter tag attlist . subs)
       (let ((name (car (assq-ref (cdr attlist) 'name))))
         (and (memq name names)
              `(,tag ,attlist ,@subs))))
     (pre-post-order
-     bindings
+     items
      `((group
         ((items
           ((procedure *preorder* . ,do-filter)
@@ -92,6 +94,7 @@
           . ,(lambda (tag . subs)
                `(items ,@(filter identity subs))))
          (*default* *preorder* . ,list))
-        . ,list)))))
+        . ,list)
+       (documentation *preorder* . ,list)))))
 
 ;; arch-tag: be0af3e7-6a35-4b70-9550-6cdbe6a5781c
