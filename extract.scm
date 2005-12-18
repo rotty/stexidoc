@@ -4,59 +4,41 @@
   `((*text* . ,(lambda (tag text) text))
     (*default* . ,(lambda args args))))
 
-
-(define scheme->spedl
-  (opt-lambda (extractors (port (current-input-port)))
-    (let ((comments '())
-          (extracted '()))
-      (define (maybe-emit-documentation!)
-        (if (null? extracted)
-            '()
-            (receive (override? texi-fragment) (schmooz (reverse comments)
-                                                        (car extracted))
-              (let ((docs `(group (items ,@(if override? '() (reverse extracted)))
-                                  (documentation
-                                   ,@(cdr (texi-fragment->stexi texi-fragment))))))
-                (set! extracted '())
-                (set! comments '())
-                (list docs)))))
-      (pre-post-order
-       (read-scheme-code port)
-       `((form *preorder* .
-               ,(lambda (tag form)
-                  (guard
-                   (c
-                    ((extract-error? c)
-                     (format #t "while processing ~s: ~s~%" form
-                             (condition-message c))
-                     (set! extracted '())
-                     (set! comments '())))
-                   (let ((result (cond
-                                  ((and (pair? form)
-                                        (assq (car form) extractors)) =>
-                                        (lambda (x) ((cdr x) form)))
-                                  (else #f))))
-                     (if result
-                         (set! extracted (cons result extracted)))
-                     '()))))
-         (comment *preorder* .
-                  ,(lambda (tag comment)
-                     (let ((docs (maybe-emit-documentation!)))
-                       (cond
-                        ((pregexp-match-positions "^;*\\s@(sub)*section" comment)
-                         `(,@docs
-                           (group (items)
-                                  (documentation
-                                   ,@(cdr (texi-fragment->stexi
-                                           (string-trim comment #\;)))))))
-                        (else
-                         (set! comments (cons comment comments))
-                         docs)))))
-         (*fragment* . ,(lambda (tag . subs)
-                          `(*fragment*
-                            ,@(concatenate (cons (maybe-emit-documentation!) subs)))))
-         ,@universal-spedl-rules)))))
-
+(define (scheme->spedl extractors port)
+  (let loop ((comments '()) (extracted '()) (spedls '()) (code (read-scheme-code port)))
+    (define (generate)
+      (schmooz (reverse comments) (reverse extracted)))
+    (cond ((and (null? code) (null? extracted) (null? comments))
+           `(*fragment* ,@(reverse spedls)))
+          ((null? code)
+           (loop '() '() (append (generate) spedls) code))
+          (else
+           (case (caar code)
+             ((form)
+              (let ((form (cadar code)))
+                (guard
+                    (c
+                     ((extract-error? c)
+                      (format #t "while processing ~s: ~s~%" form
+                              (condition-message c))
+                      (loop '() '() spedls (cdr code))))
+                  (let ((result (cond
+                                 ((and (pair? form)
+                                       (assq (car form) extractors)) =>
+                                       (lambda (x) ((cdr x) form)))
+                                 (else #f))))
+                    (if result
+                        (loop comments (cons result extracted) spedls (cdr code))
+                        (loop comments extracted spedls (cdr code)))))))
+             ((comment)
+              (let ((comment (cadar code)))
+                (cond
+                 ((not (null? extracted))
+                  (loop '() '() (append (generate) spedls) code))
+                 (else
+                  (loop (cons comment comments) extracted spedls (cdr code))))))
+             (else
+              (error "unexpected READ-SCHEME-CODE output" (car code))))))))
 
 (define-condition-type &extract-error &error
   extract-error?)
@@ -117,46 +99,61 @@
           (and (not (null? matches)) (reverse matches))))))
 
 (define schmooz
-  (let ((starts `((verbatim . ,(pregexp "^;*\\s*@def"))
+  (let ((starts `((verbatim . ,(pregexp "^;*\\s*@(def|(sub)*section)"))
                   (schmooz . ,(pregexp "^;*@"))))
         (lead-junk (pregexp "^(;*@\\s*|;+\\s*|;*\\s+)")))
-    (lambda (comments code)
-      ;; Find out what kind of markup started the comment
-      (receive (comments mode)
-          (let loop ((comments comments))
-            (if (null? comments)
-                (values '() 'schmooz)
-                (let next-start ((starts starts))
-                  (if (null? starts)
-                      (loop (cdr comments))
-                      (if (pregexp-match (cdar starts) (car comments))
-                          (values comments (caar starts))
-                          (next-start (cdr starts)))))))
-        (case mode
-          ((verbatim)
-           (values #t (string-join (map (lambda (line)
-                                          (string-trim line (char-set #\; #\space)))
-                                        comments) nl)))
-          ((schmooz)
-           (let loop ((comments comments)
-                      (result '()))
-             (if (null? comments)
-                 (values #f (string-join (reverse result) nl))
-                 (let* ((comment (car comments))
-                        (line (cond ((match* lead-junk comment)
-                                     => (lambda (matches)
-                                          (substring comment
-                                                     (cdar matches)
-                                                     (string-length comment))))
-                                    (else comment))))
-                   (cond ((match* "@[0-9]+" line)
-                          => (lambda (matches)
-                               (loop (cdr comments)
-                                     (cons (expand-arg-macros matches line code)
-                                           result))))
-                         (else
-                          (loop (cdr comments)
-                                (cons line result)))))))))))))
+    (lambda (comments extracted)
+      (let loop ((mode 'skip) (collected '()) (spedls '()) (comments comments))
+        (define (generate)
+          (let* ((stexi (cdr (texi-fragment->stexi
+                              (string-join (reverse collected) nl))))
+                 (spedl (cond ((and (not (null? extracted)) (eq? mode 'schmooz))
+                               `(group (items ,@extracted)
+                                       (documentation ,@stexi)))
+                              (else `(documentation ,@stexi)))))
+            spedl))
+        (cond
+         ((and (null? comments) (null? collected))
+          spedls)
+         ((null? comments)
+          (loop mode '() (cons (generate) spedls) comments))
+         (else
+          (let* ((line (car comments))
+                 (line-kind (let next-start ((starts starts))
+                                 (if (null? starts)
+                                     'regular
+                                     (if (pregexp-match (cdar starts) line)
+                                         (caar starts)
+                                         (next-start (cdr starts)))))))
+            (case mode
+              ((skip)
+               (if (eq? line-kind 'regular)
+                   (loop 'skip collected spedls (cdr comments))
+                   (loop line-kind collected spedls comments)))
+              ((verbatim)
+               (if (eq? line-kind 'schmooz)
+                   (loop 'schmooz '() (cons (generate) spedls) comments)
+                   (loop mode
+                         (cons (string-trim line (char-set #\; #\space)) collected)
+                         spedls
+                         (cdr comments))))
+              ((schmooz)
+               (let ((line (cond ((match* lead-junk line)
+                                  => (lambda (matches)
+                                        (substring line
+                                                   (cdar matches)
+                                                   (string-length line))))
+                                 (else line))))
+                 (cond
+                  ((match* "@[0-9]+" line)
+                   => (lambda (matches)
+                        (loop mode
+                              (cons (expand-arg-macros matches line (car extracted))
+                                    collected)
+                              spedls
+                              (cdr comments))))
+                  (else
+                   (loop mode (cons line collected) spedls (cdr comments))))))))))))))
 
 (define (extract-define form)
   (match (cdr form)
@@ -199,9 +196,9 @@
 
 (define (args->proper-list args)
   (let loop ((result '()) (lst args))
-      (cond ((null? lst)  (reverse! result))
-            ((pair? lst)  (loop (cons (car lst) result) (cdr lst)))
-            (else         (loop (cons `(rest-list ,lst) result) '())))))
+    (cond ((null? lst)  (reverse! result))
+          ((pair? lst)  (loop (cons (car lst) result) (cdr lst)))
+          (else         (loop (cons `(rest-list ,lst) result) '())))))
 
 
 ;; arch-tag: 6d052554-c085-4fd8-96c3-708f8bc3bb19

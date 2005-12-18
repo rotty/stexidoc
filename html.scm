@@ -65,12 +65,12 @@
                                                 files))))
                (*default* *preorder* . ,list))
               . ,list)
-             (documentation *preorder* . ,list)
-             (*default* *preorder* . ,(lambda args (write args) (newline) args)))
+             (documentation *preorder* . ,list))
             . ,(lambda (tag . subs)
                  (proc (assq 'structure subs)
                        (assq-ref subs 'documentation)))))
-          . ,(lambda args '())))
+          . ,(lambda args '()))
+         (documentation *preorder* . ,list))        
         . ,(lambda args '()))))))
 
 (define (spedl->structure-html title spedl html-dir)
@@ -129,9 +129,9 @@
                              ,(lambda (tag . stexi)
                                 `(dd ,@(stexi->shtml stexi)))))
              . ,(lambda (tag items docs)
-                  (if items
-                      `(data ,items ,docs)
-                      `(break ,@(cdr docs))))))
+                  `(data ,items ,docs)))
+            (documentation *preorder* . ,(lambda (tag . stexi)
+                                           `(break ,@(stexi->shtml stexi)))))
            . ,(lambda (tag . rows) (sectioned-list "structures" rows)))
           (documentation *preorder* . ,(lambda (tag . stexi)
                                          `(documentation ,@(stexi->shtml stexi))))
@@ -156,11 +156,11 @@
                              (h3 "Structures")
                              ,@(cddr s)))
                          systems)))))
-     . ,(lambda (tag overview . shtmls)
+     . ,(lambda (tag . subs)
           (wrap-html title root-path scm-url
                      `((h2 "Overview")
-                       ,@overview
-                       ,@(concatenate shtmls)))))
+                       ,@(map first subs)
+                       ,@(append-map second subs)))))
     ,@universal-spedl-rules))
 
 (define (markup-structure-name name)

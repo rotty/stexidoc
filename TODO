@@ -1,0 +1,13 @@
+* Missing features
+
+- Cross-referencing
+
+- Specify extractors in code that defines syntactic extensions
+
+   It should be possible to specify a set of additional extractors for
+   each structure that defines new syntax relevant to documentation
+   generation. This extended set of extractors would be used for all
+   code that OPENs that structure; i.e the set of extractors used for
+   generating structure FOO's documentation the union of all
+   extractors defined for the structures OPEN'ed by foo.
+

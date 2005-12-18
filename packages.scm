@@ -6,9 +6,8 @@
         spells.ascii spells.misc spells.opt-args spells.error
         spells.format spells.parameter spells.condition spells.alist
         spells.match spells.pregexp spells.port
-        sxml.transform sxml.sxpath
-        texinfo.stexi
-        spedoc.util)
+        sxml.sxpath
+        texinfo.stexi)
   (files read extract))
 
 (define-structure spedoc.util (export snarf-files)

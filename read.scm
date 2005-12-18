@@ -29,7 +29,7 @@
   (let loop ((sml '()))
     (let ((form (read-scheme port)))
       (if (eof-object? form)
-          `(*fragment* ,@(reverse sml))
+          (reverse sml)
           (loop (cons form sml))))))
 
 (define (read-scheme port)
