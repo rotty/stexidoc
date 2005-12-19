@@ -151,11 +151,7 @@
                    (if (eq? line-kind 'regular)
                        (loop 'skip #f collected spedls (cdr comments))
                        (loop line-kind
-                             (let ((args
-                                    (and (not (null? extracted))
-                                         ((sxpath '(// @ arguments)) (car extracted)))))
-                               (and args (not (null? args))
-                                    (arglist->str-vector (cdar args))))
+                             #f
                              collected
                              spedls
                              comments)))
@@ -190,9 +186,15 @@
                      (cond
                       ((match* "@[0-9]+" line)
                        => (lambda (matches)
+                            (define (extracted-args)
+                              (cond ((and (not (null? extracted))
+                                          ((sxpath '(// @ arguments)) (car extracted)))
+                                     => (lambda (as)
+                                          (arglist->str-vector (cdar as))))
+                                    (else #f)))
                             (loop mode
                                   args
-                                  (cons (expand-arg-macros matches line args
+                                  (cons (expand-arg-macros matches line (or args (extracted-args))
                                                            (car extracted))
                                         collected)
                                   spedls
