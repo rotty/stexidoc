@@ -1,3 +1,5 @@
+;; -*- Mode: Scheme; scheme48-package: spedoc.extract; -*-
+
 (define nl (string #\newline))
 
 (define universal-spedl-rules
@@ -140,15 +142,16 @@
                      "failed to parse texinfo fragment: ~a: ~s~%\"~%~a~%\""
                      (condition-message c) (condition-irritants c)
                      texi-fragment)))
-              (let* ((stexi (cdr (texi-fragment->stexi texi-fragment)))
-                     (spedl (cond ((and (not (null? extracted)) (eq? mode 'schmooz))
-                                   `(group ,(arg-extended-items extracted args)
-                                           (documentation ,@stexi)))
-                                  (else `(documentation ,@stexi)))))
-                spedl))))
+              (let ((stexi (cdr (texi-fragment->stexi texi-fragment))))
+                (cond ((and (not (null? extracted)) (eq? mode 'schmooz))
+                       `(group ,(arg-extended-items extracted args)
+                               (documentation ,@stexi)))
+                      ((not (null? stexi))
+                       `(documentation ,@stexi))
+                      (else #f))))))
         (cond
          ((and (null? comments) (null? collected))
-          spedls)
+          (filter values spedls))
          ((null? comments)
           (loop mode args '() (cons (generate) spedls) comments))
          (else

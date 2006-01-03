@@ -1,7 +1,14 @@
+;; -*- Mode: Scheme; scheme48-package: spedoc.texi; -*-
+
 (define universal-spedl->stexi-rules
   `((@ . ,(lambda (trigger . subs)
             `(% ,@subs)))
-    (*default* . ,(lambda args args))
+    (*fragment* *preorder* .
+                ,(lambda (tag . spedls)
+                   `(*fragment* ,@(append-map
+                                   (lambda (spedl) (cdr (spedl->stexi spedl)))
+                                   spedls))))
+    (*default* . ,list)
     (*text* . ,(lambda (trigger text)
                  (cond ((symbol? text)
                         (symbol->string text))
@@ -10,66 +17,57 @@
 (define (spedl->stexi spedl)
   (pre-post-order
    spedl
-   `((group *preorder* . ,process-group)
-     ,@universal-spedl->stexi-rules)))
-
-(define (process-group . spedl)
-  (pre-post-order
-   spedl
    `((group
       ((items
         ((structure *macro* .
-                     ,(lambda (tag attlist . subs)
-                        (let ((name (car (assq-ref (cdr attlist) 'name)))
-                              (bindings (assq-ref subs 'items))
-                              (interface (assq-ref subs 'interface)))
-                          `(structure* ,@(filter-items interface bindings)))))
-         (structure* . ,(lambda (tag . items)
-                          (lambda (to-wrap)
-                            `((section "Overview")
-                              ,@to-wrap
-                              (section "Usage")
-                              ,@(append-map (lambda (proc)
-                                              (cond ((procedure? proc) (proc #f))
-                                                    (else proc)))
-                                            items)))))
+                    ,(lambda (tag attlist . subs)
+                       (let ((name (car (assq-ref (cdr attlist) 'name)))
+                             (bindings (assq-ref subs 'items))
+                             (interface (assq-ref subs 'interface)))
+                         `(structure* ,@(filter-items interface bindings)))))
+         (structure* . ,process-structure*)
          (procedure . ,(make-def 'defun 'defunx))
-         (arguments *preorder* .
-                    ,(lambda (tag . args)
-                       `(arguments
-                         ,@(fold-right
-                            (lambda (arg args)
-                              (match arg
-                                ((list 'rest-list arg)
-                                 (append! (list "." (symbol->string arg) 
-                                                args)))
-                                ((list-rest 'optional opt-args)
-                                 `("[" ,@(map symbol->string opt-args) "]"
-                                   ,@args))
-                                (else (cons (symbol->string arg) args))))
-                            '()
-                            args))))
+         (arguments *preorder* . ,arguments->stexi)
          (variable . ,(make-def 'defvar 'defvarx))
          (syntax . ,(make-def 'defspec 'defspecx))
          ,@universal-spedl->stexi-rules)
-        . ,(lambda (tag . procs)
-             (lambda (to-wrap)
-               (append-map (lambda (proc) (proc to-wrap)) procs))))
-       (documentation *preorder* . ,(lambda (tag . subs)
-                                      (lambda (to-wrap) subs)))
+        . ,(lambda (tag . procs) procs))
+       (documentation *preorder* . ,(lambda (tag . docs) docs))
        ,@universal-spedl->stexi-rules)
-      . ,(lambda (tag proc . procs)
-           (cond ((procedure? proc)
-                  (proc (append-map (lambda (proc) (proc #f)) procs)))
-                 (else proc)))))))
+      . ,process-group)
+     ,@universal-spedl->stexi-rules)))
 
 
-(define (make-deffn category)
-  (lambda (tag attlist . subs)
-    (lambda (to-wrap)
-      (if to-wrap
-          `((deffn (% (category ,category) ,@(cdr attlist)) ,@to-wrap))
-          `((deffnx (% (category ,category) ,@(cdr attlist))))))))
+(define (process-group tag items docs)
+  (cond ((not (null? items))
+         `(*fragment*
+           ,@((car items) (append
+                           (append-map (lambda (proc) (proc #f)) (cdr items))
+                           docs))))
+        (else
+         '(*fragment*))))
+
+(define (process-structure* tag . items)
+  (lambda (to-wrap)
+    `((section "Overview")
+      ,@to-wrap
+      (section "Usage")
+      ,@(append-map cdr items))))
+
+(define (arguments->stexi tag . args)
+  `(arguments
+    ,@(fold-right
+       (lambda (arg args)
+         (match arg
+           ((list 'rest-list arg)
+            (append! (list "." (symbol->string arg) 
+                           args)))
+           ((list-rest 'optional opt-args)
+            `("[" ,@(map symbol->string opt-args) "]"
+              ,@args))
+           (else (cons (symbol->string arg) args))))
+       '()
+       args)))
 
 (define (make-def type typex)
   (lambda (tag attlist . subs)

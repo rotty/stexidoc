@@ -1,3 +1,5 @@
+;; -*- Mode: Scheme; scheme48-package: spedoc.html; -*-
+
 (define nl (string #\newline))
 (define (delq key alist)
   (remove (lambda (entry) (eq? key (car entry))) alist))
@@ -88,17 +90,18 @@
             (make-path directory
                        (append-extension name-str  "html"))
           (lambda (port)
-            (display xhtml-doctype port)
-            (sxml->xml
-             (wrap-html title
-                        "."
-                        "../spe-doc.html"
-                        (stexi->shtml
-                         (spedl->stexi `(group (items
-                                                (structure (@ (name ,name))
-                                                           ,@subs))
-                                               (documentation ,@docs)))))
-             port))))))
+            (let ((stexi (spedl->stexi `(*fragment*
+                                         (group (items
+                                                 (structure (@ (name ,name))
+                                                            ,@subs))
+                                                (documentation ,@docs))))))
+              (display xhtml-doctype port)
+              (sxml->xml
+               (wrap-html title
+                          "."
+                          "../spe-doc.html"
+                          (map stexi->shtml (cdr stexi)))
+               port)))))))
                                  
 (define (systems->html-rules title root-path scm-url)
   `((items
