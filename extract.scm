@@ -111,12 +111,21 @@
                   items))
             (else items))))
 
+(define (schmooz-trim line)
+  (let ((uncommented (string-trim line #\;)))
+    (cond
+     ((and (string-prefix? "@" uncommented)
+           (or (= (string-length uncommented) 1) ;; lone "@"
+               (string-skip uncommented char-set:whitespace))) ;; "@" followed by space
+      (substring/shared uncommented 1 (string-length uncommented)))
+     (else
+      uncommented))))
+
 (define schmooz
   (let ((starts `((verbatim . ,(pregexp "^;*\\s*@(def|(sub)*(section|heading))"))
                   (stop     . ,(pregexp "^;*@stop\\s*$"))
                   (args     . ,(pregexp "^;*@args(\\s+|$)"))
-                  (schmooz . ,(pregexp "^;*@\\s+"))))
-        (lead-junk (pregexp "^(;*@\\s*|;+\\s*|;*\\s+)")))
+                  (schmooz . ,(pregexp "^;*@(\\s+|$)")))))
     (lambda (comments extracted)
       (let loop ((mode 'skip)
                  (args #f)
@@ -124,13 +133,19 @@
                  (spedls '())
                  (comments comments))
         (define (generate)
-          (let* ((stexi (cdr (texi-fragment->stexi
-                              (string-join (reverse collected) nl))))
-                 (spedl (cond ((and (not (null? extracted)) (eq? mode 'schmooz))
-                               `(group ,(arg-extended-items extracted args)
-                                       (documentation ,@stexi)))
-                              (else `(documentation ,@stexi)))))
-            spedl))
+          (let ((texi-fragment (string-join (reverse collected) nl)))
+            (guard
+                (c ((parser-error? c)
+                    (raise-extract-error
+                     "failed to parse texinfo fragment: ~a: ~s~%\"~%~a~%\""
+                     (condition-message c) (condition-irritants c)
+                     texi-fragment)))
+              (let* ((stexi (cdr (texi-fragment->stexi texi-fragment)))
+                     (spedl (cond ((and (not (null? extracted)) (eq? mode 'schmooz))
+                                   `(group ,(arg-extended-items extracted args)
+                                           (documentation ,@stexi)))
+                                  (else `(documentation ,@stexi)))))
+                spedl))))
         (cond
          ((and (null? comments) (null? collected))
           spedls)
@@ -160,7 +175,7 @@
                        (loop 'schmooz args '() (cons (generate) spedls) comments)
                        (loop mode
                              #f
-                             (cons (string-trim line (char-set #\; #\space)) collected)
+                             (cons (string-trim line #\;) collected)
                              spedls
                              (cdr comments))))
                   ((args)
@@ -177,12 +192,7 @@
                          spedls
                          (cdr comments)))
                   ((schmooz)
-                   (let ((line (cond ((match* lead-junk line)
-                                      => (lambda (matches)
-                                           (substring line
-                                                      (cdar matches)
-                                                      (string-length line))))
-                                     (else line))))
+                   (let ((line (schmooz-trim line)))
                      (cond
                       ((match* "@[0-9]+" line)
                        => (lambda (matches)
@@ -194,7 +204,9 @@
                                     (else #f)))
                             (loop mode
                                   args
-                                  (cons (expand-arg-macros matches line (or args (extracted-args))
+                                  (cons (expand-arg-macros matches
+                                                           line
+                                                           (or args (extracted-args))
                                                            (car extracted))
                                         collected)
                                   spedls
