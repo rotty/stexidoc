@@ -1,4 +1,4 @@
-(define-structure spedoc.extract (export scheme->spedl
+(define-structure stexidoc.extract (export scheme->spedl
                                          raise-extract-error
                                          usual-spedl-extractors
                                          universal-spedl-rules)
@@ -10,34 +10,34 @@
         texinfo.stexi)
   (files read extract))
 
-(define-structure spedoc.util (export snarf-files)
+(define-structure stexidoc.util (export snarf-files)
   (open scheme srfi-1 srfi-8
         spells.file
         sxml.transform
-        spedoc.extract)
+        stexidoc.extract)
   (files util))
 
-(define-structure spedoc.system (export systems->spedl interface-exported-names)
+(define-structure stexidoc.system (export systems->spedl interface-exported-names)
   (open scheme srfi-1 srfi-8
         spells.file spells.format spells.alist spells.error spells.match
         spells.table spells.parameter
         sxml.transform
-        spedoc.util spedoc.extract)
+        stexidoc.util stexidoc.extract)
   (files system))
 
-(define-structure spedoc.texi (export spedl->stexi)
+(define-structure stexidoc.texi (export spedl->stexi)
   (open scheme srfi-1
         spells.alist spells.misc spells.format spells.match ;; debug
         sxml.transform
-        spedoc.system)
+        stexidoc.system)
   (files texi))
 
-(define-structure spedoc.html (export systems->html)
+(define-structure stexidoc.html (export systems->html)
   (open scheme srfi-1 srfi-8 srfi-13
         spells.file spells.alist spells.parameter spells.error
         sxml.simple sxml.transform sxml.sxpath
         texinfo.html
-        spedoc.util spedoc.system spedoc.texi spedoc.extract)
+        stexidoc.util stexidoc.system stexidoc.texi stexidoc.extract)
   (files html))
 
 ;; arch-tag: 6f905e34-83d6-416d-9fbb-36da874c39e2

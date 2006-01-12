@@ -1,4 +1,4 @@
-;; -*- Mode: Scheme; scheme48-package: spedoc.extract; -*-
+;; -*- Mode: Scheme; scheme48-package: stexidoc.extract; -*-
 
 (define nl (string #\newline))
 

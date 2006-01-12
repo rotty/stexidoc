@@ -1,5 +1,5 @@
 (load-system 'testeez)
-(load-system 'spedoc)
+(load-system 'stexidoc)
 
 (user '(open testeez))
 (user '(open testeez.run))

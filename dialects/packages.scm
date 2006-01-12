@@ -23,7 +23,7 @@
 
 ;;; Code:
 
-(scmxlate-eval (define *package-path* "spedoc"))
+(scmxlate-eval (define *package-path* "stexidoc"))
 (scmxlate-include "scmxlate-conf.scm")
 
 ;;; packages.scm ends here

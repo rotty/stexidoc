@@ -1,4 +1,4 @@
-;; -*- Mode: Scheme; scheme48-package: spedoc.html; -*-
+;; -*- Mode: Scheme; scheme48-package: stexidoc.html; -*-
 
 (define nl (string #\newline))
 (define (delq key alist)

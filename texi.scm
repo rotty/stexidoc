@@ -1,4 +1,4 @@
-;; -*- Mode: Scheme; scheme48-package: spedoc.texi; -*-
+;; -*- Mode: Scheme; scheme48-package: stexidoc.texi; -*-
 
 (define universal-spedl->stexi-rules
   `((@ . ,(lambda (trigger . subs)
