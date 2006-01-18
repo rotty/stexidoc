@@ -1,3 +1,3 @@
-(define-system stexidoc (0 1 0)
+(define-system stexidoc
   (dependencies spells sxml texinfo)
   (config-files packages))
