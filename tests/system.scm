@@ -8,7 +8,7 @@
       (group
        (items
         (system
-         (@ (name foo) (version (0 1 0)))
+         (@ (name foo))
          (items (group
                  (items
                   (structure (@ (name foo.qux))
@@ -19,5 +19,5 @@
        (documentation (para "Contains facilities to ensure fooish behaviour")))
       (documentation (subsection "Blah"))
       (group
-       (items (system (@ (name blah) (version (0 1 0)))))
+       (items (system (@ (name blah))))
        (documentation (para "Blah, blah..."))))))

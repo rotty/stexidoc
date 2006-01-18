@@ -26,8 +26,8 @@
 
 (define (extract-define-system form)
   (match (cdr form)
-    ((list-rest name version clauses)
-     `(system (@ (name ,name) (version ,version))
+    ((list-rest name clauses)
+     `(system (@ (name ,name))
               ,@clauses))
     (else
      (raise-extract-error "unmatched DEFINE-SYSTEM"))))
