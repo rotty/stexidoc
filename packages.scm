@@ -12,15 +12,15 @@
 
 (define-structure stexidoc.util (export snarf-files)
   (open scheme srfi-1 srfi-8
-        spells.file
         sxml.transform
         stexidoc.extract)
   (files util))
 
 (define-structure stexidoc.system (export systems->spedl interface-exported-names)
   (open scheme srfi-1 srfi-8
-        spells.file spells.format spells.alist spells.error spells.match
+        spells.format spells.alist spells.error spells.match
         spells.table spells.parameter
+        spells.namestring
         sxml.transform
         stexidoc.util stexidoc.extract)
   (files system))
@@ -34,7 +34,7 @@
 
 (define-structure stexidoc.html (export systems->html)
   (open scheme srfi-1 srfi-8 srfi-13
-        spells.file spells.alist spells.parameter spells.error
+        spells.namestring spells.alist spells.parameter spells.error
         sxml.simple sxml.transform sxml.sxpath
         texinfo.html
         stexidoc.util stexidoc.system stexidoc.texi stexidoc.extract)
