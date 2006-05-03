@@ -3,7 +3,7 @@
     ,@(append-map
        (lambda (sysdef)
          (cdr
-          (call-with-input-file sysdef
+          (call-with-input-file (x->namestring sysdef)
             (lambda (port)
               (let ((lib-docs (scheme->spedl
                                `((define-system . ,extract-define-system))
@@ -13,11 +13,12 @@
                  `((spedl-files
                     *preorder*
                     . ,(lambda (tag . filespecs)
-                         (let ((dir (file-dirname sysdef)))
+                         (let ((dir (x->pathname sysdef)))
                            `(items ,@(snarf-files
                                       (config-language-extractors dir)
                                       (map (lambda (fspec)
-                                             (make-path dir (filespec->path fspec)))
+                                             (pathname-attach-directory
+                                              dir (filespec->pathname fspec)))
                                            filespecs))))))
                    (*fragment* . ,(lambda (tag . subs)
                                     `(items ,@subs)))
@@ -52,8 +53,9 @@
                 (case (car clause)
                   ((open) clause)
                   ((files)
-                   (let ((fspec->path (lambda (fspec)
-                                        (make-path dir (filespec->path fspec)))))
+                   (let ((fspec->path
+                          (lambda (fspec)
+                            (pathname-attach-directory dir (filespec->pathname fspec)))))
                      `(files ,@(map fspec->path (cdr clause)))))
                   (else #f)))
               clauses))
@@ -96,19 +98,26 @@
     (else
      (raise-extract-error "unmatched DEFINE-INTERFACE"))))
 
-(define (fspec-comp->path-comp fspec-comp)
-  (cond ((symbol? fspec-comp) (symbol->string fspec-comp))
-        ((pair? fspec-comp) (apply make-path (map fspec-comp->path-comp fspec-comp)))
-        (else fspec-comp)))
+(define (maybe-symbol->string x)
+  (if (symbol? x) (symbol->string x) x))
 
-(define (filespec->path filespec)
-  (append-extension
-   (cond ((pair? filespec)
-          (apply make-path (map fspec-comp->path-comp filespec)))
-         ((symbol? filespec)
-          (symbol->string filespec))
-         (else filespec))
-   "scm"))
+(define (filespec->pathname fspec)
+  (cond ((symbol? fspec)
+         (make-pathname #f '() (make-file (symbol->string fspec) "scm")))
+        ((pair? fspec)
+         (if (pair? (car fspec))
+             (make-pathname #f (map maybe-symbol->string (car fspec))
+                            (make-file (maybe-symbol->string (cadr fspec)) "scm"))
+             (make-pathname #f (map maybe-symbol->string (drop-right fspec 1))
+                            (make-file (maybe-symbol->string (last fspec)) "scm"))))
+        (else
+         (error "cannot coerce to pathname" fspec))))
+
+(define (pathname-attach-directory dir pathname)
+  (make-pathname (pathname-origin dir)
+                 (append (pathname-directory dir)
+                         (pathname-directory pathname))
+                 (pathname-file pathname)))
 
 (define (config-language-extractors dir)
   `((define-structure . , (extract-define-structure dir))

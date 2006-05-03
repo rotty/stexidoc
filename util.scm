@@ -2,7 +2,7 @@
   (append-map
    (lambda (file)
      (cdr
-      (call-with-input-file file
+      (call-with-input-file (x->namestring file)
         (lambda (port)
           (scheme->spedl extractors port)))))
    files))
