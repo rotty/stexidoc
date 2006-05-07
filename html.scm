@@ -20,7 +20,7 @@
     str)))
 
 (define (spedl->html title spedl directory)
-  (call-with-output-file (make-path directory "index.html")
+  (call-with-output-file (x->namestring (pathname-with-file directory "index.html"))
     (lambda (port)
       (display xhtml-doctype port)
       (sxml->xml (pre-post-order
@@ -86,9 +86,8 @@
   (let ((items (assq-ref subs 'items))
         (name-str (symbol->string name)))
     (if items
-        (call-with-output-file
-            (make-path directory
-                       (append-extension name-str  "html"))
+        (call-with-output-file (x->namestring
+                                (pathname-with-file directory (make-file name-str "html")))
           (lambda (port)
             (let ((stexi (spedl->stexi `(*fragment*
                                          (group (items
@@ -168,7 +167,7 @@
 
 (define (markup-structure-name name)
   (let ((name (symbol->string name)))
-    `(a (@ (href ,(append-extension name "html")) (class "system")) ,name)))
+    `(a (@ (href ,(string-append name ".html")) (class "system")) ,name)))
 
 (define (sectioned-list id rows)
   (define (dl items)
@@ -199,7 +198,7 @@
               (content "SPE-doc, a Scheme documentation extractor")))
      (style (@ (type "text/css") (media "screen"))
        "@import url("
-       ,(make-path root-path "screen.css")
+       ,(x->namestring (pathname-with-file root-path "screen.css"))
        ");"))
     (body
      (div (@ (id "body"))
