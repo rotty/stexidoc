@@ -18,6 +18,8 @@
           (sxml transform)
           (stexidoc util)
           (stexidoc extract))
+
+  (define error (make-error-signaller "stexidoc system"))
   
   (include-file ((stexidoc scheme) system))
 

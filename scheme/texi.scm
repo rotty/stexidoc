@@ -1,15 +1,15 @@
 ;; -*- Mode: Scheme; scheme48-package: stexidoc.texi; -*-
 
 (define universal-spedl->stexi-rules
-  `((@ . ,(lambda (trigger . subs)
+  `((^ . ,(lambda (trigger . subs)
             `(% ,@subs)))
     (*fragment* *PREORDER* .
                 ,(lambda (tag . spedls)
                    `(*fragment* ,@(append-map
                                    (lambda (spedl) (cdr (spedl->stexi spedl)))
                                    spedls))))
-    (*default* . ,list)
-    (*text* . ,(lambda (trigger text)
+    (*DEFAULT* . ,list)
+    (*TEXT* . ,(lambda (trigger text)
                  (cond ((symbol? text)
                         (symbol->string text))
                        (else text))))))
@@ -19,7 +19,7 @@
    spedl
    `((group
       ((items
-        ((structure *macro* .
+        ((structure *MACRO* .
                     ,(lambda (tag attlist . subs)
                        (let ((name (car (assq-ref (cdr attlist) 'name)))
                              (bindings (assq-ref subs 'items))
@@ -91,7 +91,7 @@
            (syntax *PREORDER* . ,do-filter))
           . ,(lambda (tag . subs)
                `(items ,@(filter identity subs))))
-         (*default* *PREORDER* . ,list))
+         (*DEFAULT* *PREORDER* . ,list))
         . ,list)
        (documentation *PREORDER* . ,list)))))
 

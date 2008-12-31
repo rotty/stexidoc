@@ -1,5 +1,5 @@
 (define (line-port . lines)
-  (open-input-string (string-join lines (string #\newline))))
+  (open-string-input-port (string-join lines (string #\newline))))
 
 (define (stexi . lines)
   (spedl->stexi (scheme->spedl usual-spedl-extractors
@@ -15,12 +15,12 @@
                    (para "Some docs."))))
   (test/equal "structure"
     (spedl->stexi '(*fragment* (group (items
-                                       (structure (@ (name foo))
+                                       (structure (^ (name foo))
                                                   (interface (export bar))
                                                   (items
                                                    (group
                                                     (items
-                                                     (procedure (@ (name bar)
+                                                     (procedure (^ (name bar)
                                                                    (arguments x))))
                                                     (documentation (para "Bar"))))))
                                       (documentation (para "Hello")))))
