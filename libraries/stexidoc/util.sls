@@ -24,8 +24,11 @@
 
 (library (stexidoc util)
   (export snarf-files)
-  (import (rnrs base)
+  (import (except (rnrs base) error string-copy string->list string-for-each)
+          (rnrs io simple)
+          (spells lists)
           (spells pathname)
+          (spells include)
           (sxml transform)
           (stexidoc extract))
 

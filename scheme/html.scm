@@ -60,19 +60,19 @@
          (*structures
           ((*group
             ((structure
-              ((@ *preorder* . ,list)
-               (files *preorder* .
+              ((@ *PREORDER* . ,list)
+               (files *PREORDER* .
                       ,(lambda (tag . files)
                          `(items ,@(snarf-files usual-spedl-extractors
                                                 files))))
-               (*default* *preorder* . ,list))
+               (*default* *PREORDER* . ,list))
               . ,list)
-             (documentation *preorder* . ,list))
+             (documentation *PREORDER* . ,list))
             . ,(lambda (tag . subs)
                  (proc (assq 'structure subs)
                        (assq-ref subs 'documentation)))))
           . ,(lambda args '()))
-         (documentation *preorder* . ,list))        
+         (documentation *PREORDER* . ,list))        
         . ,(lambda args '()))))))
 
 (define (spedl->structure-html title spedl html-dir)
@@ -112,10 +112,10 @@
                                      items)))))
       (*systems
        ((system
-         ((@ *preorder* . ,list)
+         ((@ *PREORDER* . ,list)
           (items
            ((group
-             ((items *preorder* .
+             ((items *PREORDER* .
                      ,(lambda (tag . subs)
                         (let ((markup (filter-map
                                        (lambda (sub)
@@ -127,15 +127,15 @@
                                        subs)))
                           (and (not (null? markup))
                                `(dt ,@(concatenate markup))))))
-              (documentation *preorder* .
+              (documentation *PREORDER* .
                              ,(lambda (tag . stexi)
                                 `(dd ,@(stexi->shtml stexi)))))
              . ,(lambda (tag items docs)
                   `(data ,items ,docs)))
-            (documentation *preorder* . ,(lambda (tag . stexi)
+            (documentation *PREORDER* . ,(lambda (tag . stexi)
                                            `(break ,@(stexi->shtml stexi)))))
            . ,(lambda (tag . rows) (sectioned-list "structures" rows)))
-          (documentation *preorder* . ,(lambda (tag . stexi)
+          (documentation *PREORDER* . ,(lambda (tag . stexi)
                                          `(documentation ,@(stexi->shtml stexi))))
           (*default* . ,(lambda args #f)))
          . ,(lambda (tag attr . subs)

@@ -11,7 +11,7 @@
                 (pre-post-order
                  lib-docs
                  `((spedl-files
-                    *preorder*
+                    *PREORDER*
                     . ,(lambda (tag . filespecs)
                          (let ((dir (x->pathname sysdef)))
                            `(items ,@(snarf-files
@@ -28,7 +28,7 @@
 (define (extract-define-system form)
   (match (cdr form)
     ((list-rest name clauses)
-     `(system (@ (name ,name))
+     `(system (^ (name ,name))
               ,@clauses))
     (else
      (raise-extract-error "unmatched DEFINE-SYSTEM"))))
@@ -37,12 +37,12 @@
   (lambda (form)
     (match (cdr form)
       ((list-rest name (cons 'export exports) clauses)
-       `(structure (@ (name ,name))
+       `(structure (^ (name ,name))
                    (interface (export ,@exports))
                    ,@(structure-clauses->spedl dir clauses)))
       ((list-rest name interface clauses)
-       `(structure (@ (name ,name))
-                   (interface (@ (name interface))
+       `(structure (^ (name ,name))
+                   (interface (^ (name interface))
                      (export ,@(lookup-interface interface)))
                    ,@(structure-clauses->spedl dir clauses)))
       (else
@@ -91,10 +91,10 @@
     ((list name (list-rest 'compound-interface interfaces))
      (let ((exports (append-map interface-exported-names interfaces)))
        (table-set! (current-interfaces) name exports)
-       `(interface (@ (name ,name)) ,(caddr form))))
+       `(interface (^ (name ,name)) ,(caddr form))))
     ((list name (cons 'export exports))
      (table-set! (current-interfaces) name exports)
-     `(interface (@ (name ,name)) ,(caddr form)))
+     `(interface (^ (name ,name)) ,(caddr form)))
     (else
      (raise-extract-error "unmatched DEFINE-INTERFACE"))))
 

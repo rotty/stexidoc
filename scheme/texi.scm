@@ -3,7 +3,7 @@
 (define universal-spedl->stexi-rules
   `((@ . ,(lambda (trigger . subs)
             `(% ,@subs)))
-    (*fragment* *preorder* .
+    (*fragment* *PREORDER* .
                 ,(lambda (tag . spedls)
                    `(*fragment* ,@(append-map
                                    (lambda (spedl) (cdr (spedl->stexi spedl)))
@@ -27,12 +27,12 @@
                          `(structure* ,@(filter-items interface bindings)))))
          (structure* . ,process-structure*)
          (procedure . ,(make-def 'defun 'defunx))
-         (arguments *preorder* . ,arguments->stexi)
+         (arguments *PREORDER* . ,arguments->stexi)
          (variable . ,(make-def 'defvar 'defvarx))
          (syntax . ,(make-def 'defspec 'defspecx))
          ,@universal-spedl->stexi-rules)
         . ,(lambda (tag . procs) procs))
-       (documentation *preorder* . ,(lambda (tag . docs) docs))
+       (documentation *PREORDER* . ,(lambda (tag . docs) docs))
        ,@universal-spedl->stexi-rules)
       . ,process-group)
      ,@universal-spedl->stexi-rules)))
@@ -86,13 +86,13 @@
      items
      `((group
         ((items
-          ((procedure *preorder* . ,do-filter)
-           (variable *preorder* . ,do-filter)
-           (syntax *preorder* . ,do-filter))
+          ((procedure *PREORDER* . ,do-filter)
+           (variable *PREORDER* . ,do-filter)
+           (syntax *PREORDER* . ,do-filter))
           . ,(lambda (tag . subs)
                `(items ,@(filter identity subs))))
-         (*default* *preorder* . ,list))
+         (*default* *PREORDER* . ,list))
         . ,list)
-       (documentation *preorder* . ,list)))))
+       (documentation *PREORDER* . ,list)))))
 
 ;; arch-tag: be0af3e7-6a35-4b70-9550-6cdbe6a5781c

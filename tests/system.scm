@@ -1,6 +1,6 @@
 (define *foo-dir* (make-pathname
                    #f
-                   (append (pathname-directory (x->pathname *test-root-dir*))
+                   (append (pathname-directory (x->pathname (this-directory)))
                            (list "systems" "foo"))
                    #f))
 
@@ -36,10 +36,10 @@
        (group
         (items
          (system
-          (@ (name foo))
+          (^ (name foo))
           (items (group
                   (items
-                   (structure (@ (name foo.qux))
+                   (structure (^ (name foo.qux))
                               (interface (export quizzy quazzy))
                               (files ,(pathname-with-file *foo-dir* (make-file "qux" "scm")))))
                   (documentation
@@ -47,5 +47,5 @@
         (documentation (para "Contains facilities to ensure fooish behaviour")))
        (documentation (subsection "Blah"))
        (group
-        (items (system (@ (name blah))))
+        (items (system (^ (name blah))))
         (documentation (para "Blah, blah...")))))))
