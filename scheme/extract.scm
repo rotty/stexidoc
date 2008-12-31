@@ -3,8 +3,8 @@
 (define nl (string #\newline))
 
 (define universal-spedl-rules
-  `((*text* . ,(lambda (tag text) text))
-    (*default* . ,(lambda args args))))
+  `((*TEXT* . ,(lambda (tag text) text))
+    (*DEFAULT* . ,(lambda args args))))
 
 (define (scheme->spedl extractors port)
   (let loop ((comments '()) (extracted '()) (spedls '()) (code (read-scheme-code port)))
@@ -43,11 +43,11 @@
               (error "unexpected READ-SCHEME-CODE output" (car code))))))))
 
 (define-condition-type &extract-error &error
-  extract-error?)
+  make-extract-error extract-error?)
 
 (define (raise-extract-error msg . args)
-  (raise (condition (&extract-error)
-                    (&message (message (apply format #f msg args))))))
+  (raise (condition (make-extract-error)
+                    (make-message-condition (apply format #f msg args)))))
 
 (define (argspec->str spec)
   (cond ((symbol? spec) (symbol->string spec))
@@ -68,7 +68,7 @@
              vec)))))
 
 (define (expand-arg-macros matches line args code)
-  (let ((name (cadar ((sxpath '(// @ name)) code))))
+  (let ((name (cadar ((sxpath '(// ^ name)) code))))
     (let loop ((pos 0) (matches matches) (results '()))
       (if (null? matches)
           (apply string-append
@@ -93,20 +93,23 @@
 
 (define (match* pat str)
   (let loop ((pos 0) (matches '()))
-    (let ((match (and (< pos (string-length str))
-                      (pregexp-match-positions pat str pos))))
-      (if match
-          (loop (cdar match) (cons (car match) matches))
-          (and (not (null? matches)) (reverse matches))))))
+    (cond ((and (< pos (string-length str))
+                (irregex-search pat str pos))
+           => (lambda (match)
+                (let ((start (irregex-match-start-index match))
+                      (end (irregex-match-end-index match)))
+                  (loop end (cons (cons start end) matches)))))
+          (else
+           (and (not (null? matches)) (reverse matches))))))
 
 (define (arg-extended-items items args)
   `(items
     ,@(cond (args
              (map (lambda (item)
                     (match item
-                      ((list-rest name (list-rest '@ attributes) clauses)
+                      ((list-rest name (list-rest '^ attributes) clauses)
                        `(,name
-                         (@ ,@attributes
+                         (^ ,@attributes
                             (arguments ,@(map string->symbol (vector->list args))))
                          ,@clauses))
                       (else item)))
@@ -124,10 +127,10 @@
       uncommented))))
 
 (define schmooz
-  (let ((starts `((verbatim . ,(pregexp "^;*\\s*@(def|(sub)*(section|heading))"))
-                  (stop     . ,(pregexp "^;*@stop\\s*$"))
-                  (args     . ,(pregexp "^;*@args(\\s+|$)"))
-                  (schmooz . ,(pregexp "^;*@(\\s+|$)")))))
+  (let ((starts `((verbatim . ,(irregex "^;*\\s*@(def|(sub)*(section|heading))"))
+                  (stop     . ,(irregex "^;*@stop\\s*$"))
+                  (args     . ,(irregex "^;*@args(\\s+|$)"))
+                  (schmooz . ,(irregex "^;*@(\\s+|$)")))))
     (lambda (comments extracted)
       (let loop ((mode 'skip)
                  (args #f)
@@ -159,7 +162,7 @@
                  (line-kind (let next-start ((starts starts))
                                  (if (null? starts)
                                      'regular
-                                     (if (pregexp-match (cdar starts) line)
+                                     (if (irregex-search (cdar starts) line)
                                          (caar starts)
                                          (next-start (cdr starts)))))))
             (if (eq? line-kind 'stop)
@@ -201,7 +204,7 @@
                        => (lambda (matches)
                             (define (extracted-args)
                               (cond ((and (not (null? extracted))
-                                          ((sxpath '(// @ arguments)) (car extracted)))
+                                          ((sxpath '(// ^ arguments)) (car extracted)))
                                      => (lambda (as)
                                           (arglist->str-vector (cdar as))))
                                     (else #f)))
@@ -220,18 +223,18 @@
 (define (extract-define form)
   (match (cdr form)
     ((cons (cons name args) body)
-     `(procedure (@ (name ,name) (arguments ,@(args->proper-list args)))))
+     `(procedure (^ (name ,name) (arguments ,@(args->proper-list args)))))
     ((list name (list-rest 'lambda args body))
-     `(procedure (@ (name ,name) (arguments ,@(args->proper-list args)))))
+     `(procedure (^ (name ,name) (arguments ,@(args->proper-list args)))))
     ((list name expr)
-     `(variable (@ (name ,name))))
+     `(variable (^ (name ,name))))
     (else
      (raise-extract-error "unmatched define"))))
 
 (define (extract-define-syntax form)
   (match (cdr form)
     ((list name expr)
-     `(syntax (@ (name ,name))))
+     `(syntax (^ (name ,name))))
     (else
      (raise-extract-error "unmatched define-syntax"))))
 
@@ -239,7 +242,7 @@
   (match (cadr form)
     ((list-rest name args)
      `(procedure
-       (@ (name ,name)
+       (^ (name ,name)
           (arguments ,@(fold-right
                         (lambda (arg rest)
                           (cond ((and (pair? arg) (eq? (car arg) 'optional))
@@ -258,7 +261,7 @@
 
 (define (args->proper-list args)
   (let loop ((result '()) (lst args))
-    (cond ((null? lst)  (reverse! result))
+    (cond ((null? lst)  (reverse result))
           ((pair? lst)  (loop (cons (car lst) result) (cdr lst)))
           (else         (loop (cons `(rest-list ,lst) result) '())))))
 

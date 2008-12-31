@@ -15,6 +15,14 @@
 ;    (define (make-immutable! x) x)
 ;  signal (only for use by reading-error; easily excised)
 
+(define bel (ascii->char 7))
+(define bs  (ascii->char  8))
+(define ff  (ascii->char 12))
+(define cr  (ascii->char 13))
+(define ht  (ascii->char  9))
+(define vt  (ascii->char 11))
+
+
 (define (make-immutable! x) x)
 (define (reverse-list->string l n)
   (list->string (reverse l)))
@@ -87,23 +95,6 @@
   (vector-set! read-dispatch-vector     (char->ascii char) reader)
   (vector-set! read-terminating?-vector (char->ascii char) terminating?))
 
-(let ((sub-read-whitespace
-       (lambda (c port)
-         c                              ;ignored
-         (sub-read port))))
-  (for-each (lambda (c)
-              (vector-set! read-dispatch-vector c sub-read-whitespace))
-            ascii-whitespaces))
-
-(let ((sub-read-constituent
-       (lambda (c port)
-	 (parse-token (sub-read-token c port) port))))
-  (for-each (lambda (c)
-              (set-standard-syntax! c #f sub-read-constituent))
-            (string->list
-             (string-append "!$%&*+-./0123456789:<=>?@^_~ABCDEFGHIJKLM"
-                            "NOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"))))
-
 ; Usual read macros
 
 (define (set-standard-read-macro! c terminating? proc)
@@ -131,6 +122,92 @@
                  (recur (sub-read port)))
 		(else
 		 (cons form (recur (sub-read port)))))))))
+
+(define *sharp-macros* '())
+
+(define (define-sharp-macro c proc)
+  (set! *sharp-macros* (cons (cons c proc) *sharp-macros*)))
+
+(define (proper-list? x)
+  (cond ((null? x) #t)
+	((pair? x) (proper-list? (cdr x)))
+	(else #f)))
+
+
+; Tokens
+
+(define (sub-read-token c port)
+  (let loop ((l (list (preferred-case c))) (n 1))
+    (let ((c (peek-char port)))
+      (cond ((or (eof-object? c)
+                 (vector-ref read-terminating?-vector (char->ascii c)))
+             (reverse-list->string l n))
+            (else
+	     (read-char port)
+             (loop (cons (preferred-case c) l)
+                   (+ n 1)))))))
+
+(define (parse-token string port)
+  (if (let ((c (string-ref string 0)))
+	(or (char-numeric? c) (char=? c #\+) (char=? c #\-) (char=? c #\.)))
+      (cond ((string->number string))
+	    ((member string strange-symbol-names)
+	     (string->symbol (make-immutable! string)))
+	    ((string=? string ".")
+	     dot)
+	    (else
+	     (reading-error port "unsupported number syntax" string)))
+      (string->symbol (make-immutable! string))))
+
+(define strange-symbol-names
+  '("+" "-" "..."
+	"1+" "-1+"  ;Only for S&ICP support
+	"->"	    ;Only for JAR's thesis
+	))
+
+;--- This loses because the compiler won't in-line it.  Hacked by hand
+; because it is in READ's inner loop.
+;(define preferred-case
+;  (if (char=? (string-ref (symbol->string 't) 0) #\T)
+;      char-upcase
+;      char-downcase))
+
+(define p-c-v (let ((s (make-string ascii-limit #\0)))
+                (let ((p-c (if (char=? (string-ref (symbol->string 't) 0) #\T)
+                               char-upcase
+                               char-downcase)))
+                  (do ((i 0 (+ i 1)))
+                      ((>= i ascii-limit) s)
+                    (string-set! s i (p-c (ascii->char i)))))))
+
+(define (preferred-case c)
+  (string-ref p-c-v (char->ascii c)))
+
+; Reader errors
+
+(define (reading-error port message . irritants)
+  (raise (condition (make-parser-error port)
+                    (make-message-condition message)
+                    (make-irritants-condition irritants))))
+
+
+
+(let ((sub-read-whitespace
+       (lambda (c port)
+         c                              ;ignored
+         (sub-read port))))
+  (for-each (lambda (c)
+              (vector-set! read-dispatch-vector c sub-read-whitespace))
+            ascii-whitespaces))
+
+(let ((sub-read-constituent
+       (lambda (c port)
+	 (parse-token (sub-read-token c port) port))))
+  (for-each (lambda (c)
+              (set-standard-syntax! c #f sub-read-constituent))
+            (string->list
+             (string-append "!$%&*+-./0123456789:<=>?@^_~ABCDEFGHIJKLM"
+                            "NOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"))))
 
 (set-standard-read-macro! #\( #t sub-read-list)
 
@@ -164,13 +241,6 @@
             (sub-read-carefully port)))))
 
 ;;; Code up to and icluding the #\" read macro taken from scsh
-
-(define bel (ascii->char 7))
-(define bs  (ascii->char  8))
-(define ff  (ascii->char 12))
-(define cr  (ascii->char 13))
-(define ht  (ascii->char  9))
-(define vt  (ascii->char 11))
 
 ;;; Full ANSI C strings:
 ;;; - read as themselves: \\ \? \" \'
@@ -246,22 +316,6 @@
           (make-non-form '(comment))
           (make-non-form `(comment ,line))))))
 
-;; TODO: Move that to spells
-(define (read-line port)
-  (let loop ((l '()))
-    (let ((c (read-char port)))
-      (cond ((eof-object? c)
-             (or (and (not (null? l)) (list->string (reverse l))) c))
-            ((char=? c #\newline)
-             (list->string (reverse l)))
-            (else
-             (loop (cons c l)))))))
-
-(define *sharp-macros* '())
-
-(define (define-sharp-macro c proc)
-  (set! *sharp-macros* (cons (cons c proc) *sharp-macros*)))
-
 (set-standard-read-macro! #\# #f
   (lambda (c port)
     c ;ignored
@@ -309,11 +363,6 @@
 	  (list->vector elts)
 	  (reading-error port "dot in #(...)")))))
 
-(define (proper-list? x)
-  (cond ((null? x) #t)
-	((pair? x) (proper-list? (cdr x)))
-	(else #f)))
-
 (let ((number-sharp-macro
        (lambda (c port)
 	 (let ((string (sub-read-token #\# port)))
@@ -322,62 +371,6 @@
   (for-each (lambda (c)
 	      (define-sharp-macro c number-sharp-macro))
 	    '(#\b #\o #\d #\x #\i #\e)))
-
-; Tokens
 
-(define (sub-read-token c port)
-  (let loop ((l (list (preferred-case c))) (n 1))
-    (let ((c (peek-char port)))
-      (cond ((or (eof-object? c)
-                 (vector-ref read-terminating?-vector (char->ascii c)))
-             (reverse-list->string l n))
-            (else
-	     (read-char port)
-             (loop (cons (preferred-case c) l)
-                   (+ n 1)))))))
-
-(define (parse-token string port)
-  (if (let ((c (string-ref string 0)))
-	(or (char-numeric? c) (char=? c #\+) (char=? c #\-) (char=? c #\.)))
-      (cond ((string->number string))
-	    ((member string strange-symbol-names)
-	     (string->symbol (make-immutable! string)))
-	    ((string=? string ".")
-	     dot)
-	    (else
-	     (reading-error port "unsupported number syntax" string)))
-      (string->symbol (make-immutable! string))))
-
-(define strange-symbol-names
-  '("+" "-" "..."
-	"1+" "-1+"  ;Only for S&ICP support
-	"->"	    ;Only for JAR's thesis
-	))
-
-;--- This loses because the compiler won't in-line it.  Hacked by hand
-; because it is in READ's inner loop.
-;(define preferred-case
-;  (if (char=? (string-ref (symbol->string 't) 0) #\T)
-;      char-upcase
-;      char-downcase))
-
-(define p-c-v (make-string ascii-limit #\0))
-
-(let ((p-c (if (char=? (string-ref (symbol->string 't) 0) #\T)
-	       char-upcase
-	       char-downcase)))
-  (do ((i 0 (+ i 1)))
-      ((>= i ascii-limit))
-    (string-set! p-c-v i (p-c (ascii->char i)))))
-
-(define (preferred-case c)
-  (string-ref p-c-v (char->ascii c)))
-
-; Reader errors
-
-(define (reading-error port message . irritants)
-  (raise (condition (&parser-error (port port))
-                    (&message (message message))
-                    (&irritants (values irritants)))))
 
 ;; arch-tag: a3610372-2329-4a23-b17d-35a53e9c3f06
