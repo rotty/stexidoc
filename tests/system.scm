@@ -1,8 +1,9 @@
-(define *foo-dir* (make-pathname
-                   #f
-                   (append (pathname-directory (x->pathname (this-directory)))
-                           (list "systems" "foo"))
-                   #f))
+(define (test-sys name)
+  (pathname-join (this-directory)
+                 (make-pathname #f (list "systems" name) #f)))
+
+(define *foo-dir* (test-sys "foo"))
+(define *bar-dir* (test-sys "bar"))
 
 ;; Like EQUAL?, but dealing with pathnames
 (define (equal*? obj1 obj2)
@@ -28,24 +29,47 @@
         (else #f)))
 
 (testeez "External system"
-  (test-true "loading"
-    (equal*?
-     (systems->spedl (pathname-with-file *foo-dir* (make-file "sys-def" "scm")))
-     `(items
-       (documentation (subsection "Metasyntactics"))
-       (group
-        (items
-         (system
-          (^ (name foo))
-          (items (group
-                  (items
-                   (structure (^ (name foo.qux))
-                              (interface (export quizzy quazzy))
-                              (files ,(pathname-with-file *foo-dir* (make-file "qux" "scm")))))
-                  (documentation
-                   (para "Provides quxy methods for ensuring fooish behaviour"))))))
-        (documentation (para "Contains facilities to ensure fooish behaviour")))
-       (documentation (subsection "Blah"))
-       (group
-        (items (system (^ (name blah))))
-        (documentation (para "Blah, blah...")))))))
+  (test/equiv "loading"
+    (systems->spedl (pathname-with-file *foo-dir* (make-file "sys-def" "scm")))
+    `(items
+      (documentation (subsection "Metasyntactics"))
+      (group
+       (items
+        (system
+         (^ (name foo))
+         (items (group
+                 (items
+                  (structure (^ (name foo.qux))
+                             (interface (export quizzy quazzy))
+                             (files ,(pathname-with-file *foo-dir* (make-file "qux" "scm")))))
+                 (documentation
+                  (para "Provides quxy methods for ensuring fooish behaviour"))))))
+       (documentation (para "Contains facilities to ensure fooish behaviour")))
+      (documentation (subsection "Blah"))
+      (group
+       (items (system (^ (name blah))))
+       (documentation (para "Blah, blah..."))))
+    (equal*?)))
+
+(testeez "External system with R6RS libraries"
+  (test/equiv "loading"
+    (systems->spedl (pathname-with-file *bar-dir* (make-file "sys-def" "scm")))
+    `(items
+      (documentation (subsection "R6RS Metasyntactics"))
+      (group
+       (items
+        (system
+         (^ (name bar))
+         (items (group
+                 (items
+                  (structure (^ (name "(bar qux)"))
+                             (interface (export quizzy quazzy))
+                             (files ,(pathname-with-file *bar-dir* (make-file "qux" "scm")))))
+                 (documentation
+                  (para "Provides quxy methods for ensuring fooish behaviour"))))))
+       (documentation (para "Contains facilities to ensure fooish behaviour")))
+      (documentation (subsection "Blah"))
+      (group
+       (items (system (^ (name blah))))
+       (documentation (para "Blah, blah..."))))
+    (equal*?)))

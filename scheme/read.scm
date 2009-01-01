@@ -363,6 +363,12 @@
 	  (list->vector elts)
 	  (reading-error port "dot in #(...)")))))
 
+(define-sharp-macro #\!
+  (lambda (c port)
+    (read-char port)
+    (let ((token (sub-read-token (read-char port) port)))
+      (make-non-form `(directive ,(string->symbol token))))))
+
 (let ((number-sharp-macro
        (lambda (c port)
 	 (let ((string (sub-read-token #\# port)))

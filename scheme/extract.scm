@@ -39,6 +39,8 @@
                   (loop '() '() (append (generate) spedls) code))
                  (else
                   (loop (cons comment comments) extracted spedls (cdr code))))))
+             ((directive)
+              (loop comments extracted spedls (cdr code)))
              (else
               (error "unexpected READ-SCHEME-CODE output" (car code))))))))
 
@@ -90,6 +92,9 @@
                                   (raise-extract-error
                                    "no argument with number ~a" n)))
                            "} "))))))))
+
+(define irregex-match-start-index irregex-match-start)
+(define irregex-match-end-index irregex-match-end)
 
 (define (match* pat str)
   (let loop ((pos 0) (matches '()))

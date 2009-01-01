@@ -2,27 +2,38 @@
   `(items
     ,@(append-map
        (lambda (sysdef)
-         (cdr
-          (call-with-input-file (x->namestring sysdef)
-            (lambda (port)
-              (let ((lib-docs (scheme->spedl
-                               `((define-system . ,extract-define-system))
-                               port)))
-                (pre-post-order
-                 lib-docs
-                 `((spedl-files
-                    *PREORDER*
-                    . ,(lambda (tag . filespecs)
-                         (let ((dir (x->pathname sysdef)))
+         (let ((sys-dir (pathname-with-file (x->pathname sysdef) #f)))
+           (cdr
+            (call-with-input-file (x->namestring sysdef)
+              (lambda (port)
+                (let ((lib-docs (scheme->spedl
+                                 `((define-system . ,extract-define-system))
+                                 port)))
+                  (pre-post-order
+                   lib-docs
+                   `((spedl-files
+                      *PREORDER*
+                      . ,(lambda (tag . filespecs)
                            `(items ,@(snarf-files
-                                      (config-language-extractors dir)
-                                      (map (lambda (fspec)
-                                             (pathname-attach-directory
-                                              dir (filespec->pathname fspec)))
-                                           filespecs))))))
-                   (*fragment* . ,(lambda (tag . subs)
-                                    `(items ,@subs)))
-                   ,@universal-spedl-rules)))))))
+                                      (config-language-extractors sys-dir)
+                                      (map
+                                       (lambda (fspec)
+                                         (pathname-join sys-dir
+                                                        (filespec->pathname fspec)))
+                                       filespecs)))))
+                     (r6rs-libs
+                      *PREORDER*
+                      . ,(lambda (tag . dirs)
+                           `(items
+                             ,@(snarf-files
+                                (r6rs-toplevel-extractors (pathname-container sys-dir))
+                                (append-map
+                                 (lambda (dir)
+                                   (find-r6rs-libs (pathname-join sys-dir dir)))
+                                 dirs)))))
+                     (*fragment* . ,(lambda (tag . subs)
+                                      `(items ,@subs)))
+                     ,@universal-spedl-rules))))))))
        sysdefs)))
 
 (define (extract-define-system form)
@@ -55,7 +66,7 @@
                   ((files)
                    (let ((fspec->path
                           (lambda (fspec)
-                            (pathname-attach-directory dir (filespec->pathname fspec)))))
+                            (pathname-join dir (filespec->pathname fspec)))))
                      `(files ,@(map fspec->path (cdr clause)))))
                   (else #f)))
               clauses))
@@ -98,6 +109,50 @@
     (else
      (raise-extract-error "unmatched DEFINE-INTERFACE"))))
 
+(define (r6rs-library-extractor dir)
+  (lambda (form)
+    (match (cdr form)
+      ((list-rest name (cons 'export exports) clauses)
+       `(structure (^ (name ,(libname->string name)))
+                   (interface (export ,@exports))
+                   ,@(r6rs-library-clauses->spedl dir clauses)))
+      (else
+       (raise-extract-error "unmatched LIBRARY")))))
+
+(define (libname->string name)
+  (call-with-string-output-port
+    (lambda (port)
+      (write name port))))
+
+(define (r6rs-library-clauses->spedl dir clauses)
+  (let loop ((files '()) (opens '()) (clauses clauses))
+    (if (null? clauses)
+        `((files ,@(reverse files)))
+        (let ((clause (car clauses)))
+          (case (car clause)
+            ((import)
+             (loop files (cons (cdr clause) opens) (cdr clauses)))
+            ((include-file)
+             (loop (cons (pathname-join dir (filespec->pathname (cadr clause)))
+                         files)
+                   opens
+                   (cdr clauses)))
+            (else
+             (loop files opens (cdr clauses))))))))
+
+(define (find-r6rs-libs dir)
+  (define (library-file? pathname)
+    (string=? (file-type (pathname-file pathname)) "sls"))
+  (directory-fold-tree
+   dir
+   (lambda (pathname libs)
+     (if (library-file? pathname)
+         (cons pathname libs)
+         libs))
+   (lambda (dirname libs)
+     libs)
+   '()))
+
 (define (maybe-symbol->string x)
   (if (symbol? x) (symbol->string x) x))
 
@@ -113,14 +168,11 @@
         (else
          (error "cannot coerce to pathname" fspec))))
 
-(define (pathname-attach-directory dir pathname)
-  (make-pathname (pathname-origin dir)
-                 (append (pathname-directory dir)
-                         (pathname-directory pathname))
-                 (pathname-file pathname)))
-
 (define (config-language-extractors dir)
-  `((define-structure . , (extract-define-structure dir))
+  `((define-structure . ,(extract-define-structure dir))
     (define-interface . ,extract-define-interface)))
+
+(define (r6rs-toplevel-extractors dir)
+  `((library . ,(r6rs-library-extractor dir))))
 
 ;; arch-tag: bd627c26-88a9-49fa-ab9a-0f7d04d8d519
