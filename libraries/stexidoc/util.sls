@@ -1,6 +1,6 @@
 ;;; util.sls --- utility library for stexidoc
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -23,11 +23,16 @@
 #!r6rs
 
 (library (stexidoc util)
-  (export snarf-files)
+  (export snarf-files maybe-symbol->string)
   (import (except (rnrs base) error string-copy string->list string-for-each)
+          (rnrs exceptions)
+          (rnrs conditions)
           (rnrs io simple)
           (spells lists)
           (spells pathname)
+          (spells condition)
+          (spells string-substitute)
+          (spells tracing)
           (spells include)
           (sxml transform)
           (stexidoc extract))
