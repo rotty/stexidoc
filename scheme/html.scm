@@ -60,7 +60,7 @@
          (*structures
           ((*group
             ((structure
-              ((@ *PREORDER* . ,list)
+              ((^ *PREORDER* . ,list)
                (files *PREORDER* .
                       ,(lambda (tag . files)
                          `(items ,@(snarf-files usual-spedl-extractors
@@ -91,7 +91,7 @@
           (lambda (port)
             (let ((stexi (spedl->stexi `(*fragment*
                                          (group (items
-                                                 (structure (@ (name ,name))
+                                                 (structure (^ (name ,name))
                                                             ,@subs))
                                                 (documentation ,@docs))))))
               (display xhtml-doctype port)
@@ -112,7 +112,7 @@
                                      items)))))
       (*systems
        ((system
-         ((@ *PREORDER* . ,list)
+         ((^ *PREORDER* . ,list)
           (items
            ((group
              ((items *PREORDER* .
@@ -149,11 +149,11 @@
              `(dl ,@(append-map
                      (lambda (s)
                        (let ((name (first s)))
-                         `((dt (a (@ (href ,(string-append "#" name))) ,name))
+                         `((dt (a (^ (href ,(string-append "#" name))) ,name))
                            (dd ,@(second s)))))
                      systems))
              (append-map (lambda (s)
-                           `((h2 (a (@ (name ,(first s)))) ,(first s))
+                           `((h2 (a (^ (name ,(first s)))) ,(first s))
                              ,@(second s)
                              (h3 "Structures")
                              ,@(cddr s)))
@@ -167,14 +167,14 @@
 
 (define (markup-structure-name name)
   (let ((name (symbol->string name)))
-    `(a (@ (href ,(string-append name ".html")) (class "system")) ,name)))
+    `(a (^ (href ,(string-append name ".html")) (class "system")) ,name)))
 
 (define (sectioned-list id rows)
   (define (dl items)
     `(dl ,@(concatenate (reverse items))))
   (let loop ((items '()) (markup '()) (rows rows))
     (cond ((and (null? rows) (null? items))
-           `(div (@ (id ,id)) ,@(reverse markup)))
+           `(div (^ (id ,id)) ,@(reverse markup)))
           ((null? rows)
            (loop '() (cons (dl items) markup) rows))
           (else
@@ -191,22 +191,22 @@
               (error "unexpected tag" (caar rows))))))))
 
 (define (wrap-html title root-path scm-url body)
-  `(html (@ (xmlns "http://www.w3.org/1999/xhtml"))
+  `(html (^ (xmlns "http://www.w3.org/1999/xhtml"))
     (head
      (title ,title)
-     (meta (@ (name "Generator")
+     (meta (^ (name "Generator")
               (content "SPE-doc, a Scheme documentation extractor")))
-     (style (@ (type "text/css") (media "screen"))
+     (style (^ (type "text/css") (media "screen"))
        "@import url("
        ,(x->namestring (pathname-with-file root-path "screen.css"))
        ");"))
     (body
-     (div (@ (id "body"))
-          (h1 (@ (id "heading")) ,title)
-          (div (@ (id "content"))
+     (div (^ (id "body"))
+          (h1 (^ (id "heading")) ,title)
+          (div (^ (id "content"))
                ,@body)
-          (div (@ (id "footer"))
+          (div (^ (id "footer"))
                "powered by "
-               (a (@ (href ,scm-url)) "spe-doc"))))))
+               (a (^ (href ,scm-url)) "spe-doc"))))))
 
 ;; arch-tag: 405522a1-6061-4f34-a0ad-85aa8ceb4425

@@ -1,0 +1,26 @@
+#!r6rs
+
+(library (stexidoc html)
+  (export systems->html)
+  (import (except (rnrs base) error string-copy string->list string-for-each)
+          (rnrs io simple)
+          (spells lists)
+          (spells receive)
+          (spells strings)
+          (spells pathname)
+          (spells alist)
+          (spells parameter)
+          (only (spells error) make-error-signaller)
+          (spells include)
+          (sxml simple)
+          (sxml transform)
+          (sxml sxpath)
+          (texinfo html)
+          (stexidoc util)
+          (stexidoc system)
+          (stexidoc texi)
+          (stexidoc extract))
+
+  (define error (make-error-signaller "stexidoc html"))
+  
+  (include-file ((stexidoc scheme) html)))
