@@ -113,16 +113,11 @@
   (lambda (form)
     (match (cdr form)
       ((list-rest name (cons 'export exports) clauses)
-       `(structure (^ (name ,(libname->string name)))
+       `(structure (^ (name ,name))
                    (interface (export ,@exports))
                    ,@(r6rs-library-clauses->spedl dir clauses)))
       (else
        (raise-extract-error "unmatched LIBRARY")))))
-
-(define (libname->string name)
-  (call-with-string-output-port
-    (lambda (port)
-      (write name port))))
 
 (define (r6rs-library-clauses->spedl dir clauses)
   (let loop ((files '()) (opens '()) (clauses clauses))
@@ -142,7 +137,8 @@
 
 (define (find-r6rs-libs dir)
   (define (library-file? pathname)
-    (string=? (file-type (pathname-file pathname)) "sls"))
+    (and (= 1 (length (file-types (pathname-file pathname))))
+         (string=? (file-type (pathname-file pathname)) "sls")))
   (directory-fold-tree
    (pathname-as-directory dir)
    (lambda (pathname libs)
@@ -152,9 +148,6 @@
    (lambda (dirname libs)
      libs)
    '()))
-
-(define (maybe-symbol->string x)
-  (if (symbol? x) (symbol->string x) x))
 
 (define (filespec->pathname fspec)
   (cond ((symbol? fspec)

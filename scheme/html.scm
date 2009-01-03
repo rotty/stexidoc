@@ -20,7 +20,9 @@
     str)))
 
 (define (spedl->html title spedl directory)
-  (call-with-output-file (x->namestring (pathname-with-file directory "index.html"))
+  (call-with-output-file (x->namestring
+                          (pathname-join (pathname-as-directory directory)
+                                         "index.html"))
     (lambda (port)
       (display xhtml-doctype port)
       (sxml->xml (pre-post-order
@@ -47,7 +49,7 @@
     (pre-post-order
      structures
      `((items
-        ((group *macro* . ,(lambda (tag . subs)
+        ((group *MACRO* . ,(lambda (tag . subs)
                              (let ((items (assq-ref subs 'items))
                                    (docs (assq 'documentation subs)))
                                `(*structures
@@ -65,7 +67,7 @@
                       ,(lambda (tag . files)
                          `(items ,@(snarf-files usual-spedl-extractors
                                                 files))))
-               (*default* *PREORDER* . ,list))
+               (*DEFAULT* *PREORDER* . ,list))
               . ,list)
              (documentation *PREORDER* . ,list))
             . ,(lambda (tag . subs)
@@ -79,12 +81,36 @@
   (for-each-structure
    (lambda (struct stexi)
      (let ((name (car (assq-ref (cdadr struct) 'name))))
-       (emit-structure-html title name (cddr struct) stexi html-dir)))
+       (emit-structure-html title
+                            name
+                            (cddr struct)
+                            stexi
+                            (pathname-as-directory html-dir))))
    spedl))
+
+(define (structname->string name)
+  (cond ((symbol? name)
+         (symbol->string name))
+        (else
+         (call-with-string-output-port
+           (lambda (port)
+             (write name port))))))
+
+(define (intersperse l sep)
+  (let loop ((l l) (r '()) (sep sep) (orig l))
+    (cond ((pair? l) (loop (cdr l) (cons* sep (car l) r) sep orig))
+          ((null? l) (if (null? r) '() (reverse (cdr r))))
+          (else (error 'intersperse "not a proper list" orig)))))
+
+(define (structname->namestring name)
+  (cond ((symbol? name)
+         (symbol->string name))
+        (else
+         (string-concatenate (intersperse (map symbol->string name) ".")))))
 
 (define (emit-structure-html title name subs docs directory)
   (let ((items (assq-ref subs 'items))
-        (name-str (symbol->string name)))
+        (name-str (structname->namestring name)))
     (if items
         (call-with-output-file (x->namestring
                                 (pathname-with-file directory (make-file name-str "html")))
@@ -104,7 +130,7 @@
                                  
 (define (systems->html-rules title root-path scm-url)
   `((items
-     ((group *macro* . ,(lambda (tag . subs)
+     ((group *MACRO* . ,(lambda (tag . subs)
                           (let ((items (assq-ref subs 'items))
                                 (docs (assq 'documentation subs)))
                             `(*systems
@@ -137,7 +163,7 @@
            . ,(lambda (tag . rows) (sectioned-list "structures" rows)))
           (documentation *PREORDER* . ,(lambda (tag . stexi)
                                          `(documentation ,@(stexi->shtml stexi))))
-          (*default* . ,(lambda args #f)))
+          (*DEFAULT* . ,(lambda args #f)))
          . ,(lambda (tag attr . subs)
               ;;(for-each display `(,tag ,attr ,@subs #\newline))
               (let* ((subs (filter values subs))
@@ -166,8 +192,10 @@
     ,@universal-spedl-rules))
 
 (define (markup-structure-name name)
-  (let ((name (symbol->string name)))
-    `(a (^ (href ,(string-append name ".html")) (class "system")) ,name)))
+  (let ((name-str (structname->string name)))
+    `(a (^ (href ,(string-append (structname->namestring name) ".html"))
+           (class "system"))
+        ,name-str)))
 
 (define (sectioned-list id rows)
   (define (dl items)

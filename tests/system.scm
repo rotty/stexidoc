@@ -62,7 +62,7 @@
          (^ (name bar))
          (items (group
                  (items
-                  (structure (^ (name "(bar qux)"))
+                  (structure (^ (name (bar qux)))
                              (interface (export quizzy quazzy))
                              (files ,(pathname-with-file *bar-dir* (make-file "qux" "scm")))))
                  (documentation

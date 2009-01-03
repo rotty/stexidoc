@@ -3,6 +3,7 @@
 (library (stexidoc html)
   (export systems->html)
   (import (except (rnrs base) error string-copy string->list string-for-each)
+          (rnrs io ports)
           (rnrs io simple)
           (spells lists)
           (spells receive)
