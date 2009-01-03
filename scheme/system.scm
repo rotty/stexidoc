@@ -144,7 +144,7 @@
   (define (library-file? pathname)
     (string=? (file-type (pathname-file pathname)) "sls"))
   (directory-fold-tree
-   dir
+   (pathname-as-directory dir)
    (lambda (pathname libs)
      (if (library-file? pathname)
          (cons pathname libs)
