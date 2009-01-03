@@ -149,8 +149,11 @@
 
 (define (parse-token string port)
   (if (let ((c (string-ref string 0)))
-	(or (char-numeric? c) (char=? c #\+) (char=? c #\-) (char=? c #\.)))
-      (cond ((string->number string))
+	(or (char-numeric? c) (char=? c #\+) (char=? c #\.)
+            (and (char=? c #\-)
+                 (not (and (>= (string-length string) 2)
+                           (char=? (string-ref string 1) #\>))))))
+      (cond ((string->number string) => values)
 	    ((member string strange-symbol-names)
 	     (string->symbol (make-immutable! string)))
 	    ((string=? string ".")
@@ -368,6 +371,40 @@
     (read-char port)
     (let ((token (sub-read-token (read-char port) port)))
       (make-non-form `(directive ,(string->symbol token))))))
+
+(define-sharp-macro #\'
+  (lambda (c port)
+    (read-char port)
+    (list 'syntax (sub-read-carefully port))))
+
+(define-sharp-macro #\`
+  (lambda (c port)
+    (read-char port)
+    (list 'quasisyntax (sub-read-carefully port))))
+
+(define-sharp-macro #\,
+  (lambda (c port)
+    (read-char port)
+    (list 'unsyntax (sub-read-carefully port))))
+
+(define-sharp-macro #\|
+  (lambda (c port)
+    (define (assert-not-eof c)
+      (when (eof-object? c)
+        (reading-error port "unexpected end of file in #| comment")))
+    (read-char port)
+    (let loop ((comment '()))
+      (let ((c (read-char port)))
+        (assert-not-eof c)
+        (cond ((char=? c #\|)
+               (let ((c2 (read-char port)))
+                 (assert-not-eof c2)
+                 (if (char=? c2 #\#)
+                     (make-non-form
+                      `(comment ,(list->string (reverse comment))))
+                     (loop (cons c2 (cons c comment))))))
+              (else
+               (loop (cons c comment))))))))
 
 (let ((number-sharp-macro
        (lambda (c port)
