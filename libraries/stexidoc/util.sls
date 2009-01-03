@@ -23,19 +23,18 @@
 #!r6rs
 
 (library (stexidoc util)
-  (export snarf-files maybe-symbol->string)
+  (export format-exception maybe-symbol->string)
   (import (except (rnrs base) error string-copy string->list string-for-each)
+          (rnrs control)
           (rnrs exceptions)
           (rnrs conditions)
           (rnrs io simple)
           (spells lists)
           (spells pathname)
           (spells condition)
-          (spells string-substitute)
           (spells tracing)
           (spells include)
-          (sxml transform)
-          (stexidoc extract))
+          (sxml transform))
 
   (include-file ((stexidoc scheme) util))
   

@@ -14,7 +14,7 @@
                    `((spedl-files
                       *PREORDER*
                       . ,(lambda (tag . filespecs)
-                           `(items ,@(snarf-files
+                           `(items ,@(files->spedl
                                       (config-language-extractors sys-dir)
                                       (map
                                        (lambda (fspec)
@@ -25,7 +25,7 @@
                       *PREORDER*
                       . ,(lambda (tag . dirs)
                            `(items
-                             ,@(snarf-files
+                             ,@(files->spedl
                                 (r6rs-toplevel-extractors (pathname-container sys-dir))
                                 (append-map
                                  (lambda (dir)
@@ -124,30 +124,34 @@
     (if (null? clauses)
         `((files ,@(reverse files)))
         (let ((clause (car clauses)))
-          (case (car clause)
-            ((import)
-             (loop files (cons (cdr clause) opens) (cdr clauses)))
-            ((include-file)
-             (loop (cons (pathname-join dir (filespec->pathname (cadr clause)))
-                         files)
-                   opens
-                   (cdr clauses)))
-            (else
-             (loop files opens (cdr clauses))))))))
+          (if (pair? clause)
+              (case (car clause)
+                ((import)
+                 (loop files (cons (cdr clause) opens) (cdr clauses)))
+                ((include-file)
+                 (loop (cons (pathname-join dir (filespec->pathname (cadr clause)))
+                             files)
+                       opens
+                       (cdr clauses)))
+                (else
+                 (loop files opens (cdr clauses))))
+              (loop files opens (cdr clauses)))))))
 
 (define (find-r6rs-libs dir)
   (define (library-file? pathname)
     (and (= 1 (length (file-types (pathname-file pathname))))
          (string=? (file-type (pathname-file pathname)) "sls")))
-  (directory-fold-tree
-   (pathname-as-directory dir)
-   (lambda (pathname libs)
-     (if (library-file? pathname)
-         (cons pathname libs)
-         libs))
-   (lambda (dirname libs)
-     libs)
-   '()))
+  (sort-list
+   (directory-fold-tree
+    (pathname-as-directory dir)
+    (lambda (pathname libs)
+      (if (library-file? pathname)
+          (cons pathname libs)
+          libs))
+    (lambda (dirname libs)
+      libs)
+    '())
+   pathname<?))
 
 (define (filespec->pathname fspec)
   (cond ((symbol? fspec)

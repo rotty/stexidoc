@@ -1,6 +1,6 @@
 ;;; extract.sls --- stexidoc documentation extractor
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -24,6 +24,7 @@
 
 (library (stexidoc extract)
   (export scheme->spedl
+          files->spedl
           raise-extract-error
           usual-spedl-extractors
           universal-spedl-rules)
@@ -31,20 +32,26 @@
           (rnrs exceptions)
           (rnrs conditions)
           (rnrs lists)
+          (rnrs io simple)
           (spells misc)
           (spells opt-args)
           (only (spells error) make-error-signaller)
           (spells format)
           (spells parameter)
           (spells condition)
+          (spells lists)
           (spells alist)
           (spells match)
           (spells strings)
           (spells char-set)
+          (spells pathname)
+          (spells string-substitute)
+          (spells tracing)
           (spells include)
           (xitomatl irregex)
           (sxml sxpath)
           (texinfo)
+          (stexidoc util)
           (stexidoc read-r5rs))
 
   (define error (make-error-signaller "stexidoc extractor"))

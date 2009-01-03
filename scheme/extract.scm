@@ -6,6 +6,31 @@
   `((*TEXT* . ,(lambda (tag text) text))
     (*DEFAULT* . ,(lambda args args))))
 
+(define (reverse-cons x lst)
+  (let loop ((result x) (lst lst))
+    (if (null? lst)
+        result
+        (loop (cons (car lst) result) (cdr lst)))))
+
+(define (strip-non-forms lst)
+  (cond
+   ((pair? lst)
+    (let loop ((result '()) (lst lst))
+      (cond ((null? lst)
+             (reverse result))
+            ((pair? lst)
+             (cond ((non-form? (car lst))
+                    (loop result (cdr lst)))
+                   ((pair? (car lst))
+                    (loop (cons (strip-non-forms (car lst)) result)
+                          (cdr lst)))
+                   (else
+                    (loop (cons (car lst) result) (cdr lst)))))
+            (else
+             (reverse-cons lst result)))))
+   (else
+    lst)))
+
 (define (scheme->spedl extractors port)
   (let loop ((comments '()) (extracted '()) (spedls '()) (code (read-scheme-code port)))
     (define (generate)
@@ -15,34 +40,67 @@
           ((null? code)
            (loop '() '() (append (generate) spedls) code))
           (else
-           (case (caar code)
-             ((form)
-              (let ((form (cadar code)))
-                (guard
-                    (c
-                     ((extract-error? c)
-                      (format #t "while processing ~s: ~s~%" form
-                              (condition-message c))
-                      (loop '() '() spedls (cdr code))))
-                  (let ((result (cond
-                                 ((and (pair? form)
-                                       (assq (car form) extractors)) =>
-                                       (lambda (x) ((cdr x) form)))
-                                 (else #f))))
-                    (if result
-                        (loop comments (cons result extracted) spedls (cdr code))
-                        (loop comments extracted spedls (cdr code)))))))
-             ((comment)
-              (let ((comment (cadar code)))
-                (cond
-                 ((not (null? extracted))
-                  (loop '() '() (append (generate) spedls) code))
-                 (else
-                  (loop (cons comment comments) extracted spedls (cdr code))))))
-             ((directive)
-              (loop comments extracted spedls (cdr code)))
-             (else
-              (error "unexpected READ-SCHEME-CODE output" (car code))))))))
+           (cond
+            ((non-form? (car code))
+             (case (cadar code)
+               ((comment)
+                (let ((comment (caddar code)))
+                  (cond
+                   ((not (null? extracted))
+                    (loop '() '() (append (generate) spedls) code))
+                   (else
+                    (loop (cons comment comments) extracted spedls (cdr code))))))
+               ((directive)
+                (loop comments extracted spedls (cdr code)))
+               (else
+                (error "unexpected READ-SCHEME-CODE output" (car code)))))
+            (else
+             (let ((form (strip-non-forms (car code))))
+               (guard
+                   (c
+                    ((extract-error? c)
+                     (format-exception
+                      (condition
+                       (make-extract-error)
+                       (make-message-condition
+                        (format #f "while processing ~s" form))
+                       (make-stacked-condition c))
+                      (current-error-port))
+                     (loop '() '() spedls (cdr code))))
+                 (let ((result (cond
+                                ((and (pair? form)
+                                      (assq (car form) extractors)) =>
+                                      (lambda (x) ((cdr x) form)))
+                                (else #f))))
+                   (if result
+                       (loop comments (cons result extracted) spedls (cdr code))
+                       (loop comments extracted spedls (cdr code))))))))))))
+
+(define (file-processing-error file c)
+  (condition
+   (make-error)
+   (make-message-condition (string-substitute
+                            "while processing file {0}"
+                            (vector (x->namestring file))))
+   (make-stacked-condition c)))
+
+(define (raise-file-processing-error file c)
+  (raise (file-processing-error file c)))
+
+(define (files->spedl extractors files)
+  (append-map
+   (lambda (file)
+     (cdr
+      (guard (c ((parser-error? c)
+                 (raise-file-processing-error file c))
+                ((extract-error? c)
+                 (raise-file-processing-error file c)
+                 ;;(format-exception (current-error-port))
+                 ))
+        (call-with-input-file (x->namestring file)
+          (lambda (port)
+            (scheme->spedl extractors port))))))
+   files))
 
 (define-condition-type &extract-error &error
   make-extract-error extract-error?)
@@ -52,11 +110,16 @@
                     (make-message-condition (apply format #f msg args)))))
 
 (define (argspec->str spec)
+  (define (lose)
+    (raise-extract-error "invalid argument spec ~s" spec))
   (cond ((symbol? spec) (symbol->string spec))
-        ((and (pair? spec) (eq? (car spec) 'rest-list))
-         (symbol->string (cadr spec)))
+        ((pair? spec)
+         (case (car spec)
+           ((rest-list optional) (symbol->string (cadr spec)))
+           (else
+            (lose))))
         (else
-         (error "invalid argument spec" spec))))
+         (lose))))
 
 (define (arglist->str-vector lst)
   (let ((n (length lst)))
@@ -132,10 +195,10 @@
       uncommented))))
 
 (define schmooz
-  (let ((starts `((verbatim . ,(irregex "^;*\\s*@(def|(sub)*(section|heading))"))
-                  (stop     . ,(irregex "^;*@stop\\s*$"))
-                  (args     . ,(irregex "^;*@args(\\s+|$)"))
-                  (schmooz . ,(irregex "^;*@(\\s+|$)")))))
+  (let ((starts `((verbatim . ,(irregex "^\\s*;*\\s*@(def|(sub)*(section|heading))"))
+                  (stop     . ,(irregex "^\\s*;*@stop\\s*$"))
+                  (args     . ,(irregex "^\\s*;*@args(\\s+|$)"))
+                  (schmooz . ,(irregex "^\\s*;*@(\\s+|$)")))))
     (lambda (comments extracted)
       (let loop ((mode 'skip)
                  (args #f)

@@ -44,8 +44,9 @@
   (let loop ()
     (let ((form (sub-read port)))
       (cond ((eof-object? form)          form)
-            ((non-form? form)            (cdr form))
-            ((not (reader-token? form))  `(form ,form))
+            ((or (non-form? form)
+                 (not (reader-token? form)))
+             form)
             ((eq? form close-paren)
              ;; Too many right parens.
              (warn "discarding extraneous right parenthesis" port)
@@ -118,8 +119,6 @@
 		       (reading-error port
 				      "randomness after form after dot"
 				      another-form))))
-                ((non-form? form)
-                 (recur (sub-read port)))
 		(else
 		 (cons form (recur (sub-read port)))))))))
 

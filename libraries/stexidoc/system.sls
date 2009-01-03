@@ -16,6 +16,7 @@
           (spells parameter)
           (spells pathname)
           (spells filesys)
+          (spells misc)
           (spells tracing)
           (spells include)
           (sxml transform)

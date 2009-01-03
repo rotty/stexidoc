@@ -65,7 +65,7 @@
               ((^ *PREORDER* . ,list)
                (files *PREORDER* .
                       ,(lambda (tag . files)
-                         `(items ,@(snarf-files usual-spedl-extractors
+                         `(items ,@(files->spedl usual-spedl-extractors
                                                 files))))
                (*DEFAULT* *PREORDER* . ,list))
               . ,list)

@@ -1,6 +1,6 @@
 ;;; read-r5rs.sls --- R5RS reader
 
-;; Copyright (C) 2008 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -25,7 +25,9 @@
 #!r6rs
 
 (library (stexidoc read-r5rs)
-  (export read-scheme-code)
+  (export read-scheme-code
+          non-form?
+          make-non-form)
   (import (except (rnrs base) error)
           (rnrs control)
           (rnrs unicode)
