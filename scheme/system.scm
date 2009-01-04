@@ -111,7 +111,7 @@
 
 (define (r6rs-library-extractor dir)
   (lambda (form)
-    (match (cdr form)
+    (match (strip-non-forms (cdr form) 2)
       ((list-rest name (cons 'export exports) clauses)
        `(structure (^ (name ,name))
                    (interface (export ,@exports))

@@ -27,7 +27,8 @@
 (library (stexidoc read-r5rs)
   (export read-scheme-code
           non-form?
-          make-non-form)
+          make-non-form
+          strip-non-forms)
   (import (except (rnrs base) error)
           (rnrs control)
           (rnrs unicode)
@@ -47,7 +48,37 @@
           (spells include))
 
   (define error (make-error-signaller "stexidoc R5RS reader"))
-  
+
+  (define (reverse-cons x lst)
+    (let loop ((result x) (lst lst))
+      (if (null? lst)
+          result
+          (loop (cons (car lst) result) (cdr lst)))))
+
+  (define strip-non-forms
+    (case-lambda
+      ((lst n)
+       (cond
+        ((pair? lst)
+         (let loop ((i 0) (result '()) (lst lst))
+           (cond ((null? lst)
+                  (reverse result))
+                 ((or (not (pair? lst))
+                      (and n (>= i n)))
+                  (reverse-cons lst result))
+                 ((non-form? (car lst))
+                  (loop i result (cdr lst)))
+                 ((pair? (car lst))
+                  (loop (+ i 1)
+                        (cons (strip-non-forms (car lst)) result)
+                        (cdr lst)))
+                 (else
+                  (loop (+ i 1) (cons (car lst) result) (cdr lst))))))
+        (else
+         lst)))
+      ((lst)
+       (strip-non-forms lst #f))))
+
   (include-file ((stexidoc scheme) read))
 
   )

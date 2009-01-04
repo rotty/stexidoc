@@ -21,7 +21,8 @@
           (spells include)
           (sxml transform)
           (stexidoc util)
-          (stexidoc extract))
+          (stexidoc extract)
+          (stexidoc read-r5rs))
 
   (define error (make-error-signaller "stexidoc system"))
   

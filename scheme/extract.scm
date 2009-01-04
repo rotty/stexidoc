@@ -6,31 +6,6 @@
   `((*TEXT* . ,(lambda (tag text) text))
     (*DEFAULT* . ,(lambda args args))))
 
-(define (reverse-cons x lst)
-  (let loop ((result x) (lst lst))
-    (if (null? lst)
-        result
-        (loop (cons (car lst) result) (cdr lst)))))
-
-(define (strip-non-forms lst)
-  (cond
-   ((pair? lst)
-    (let loop ((result '()) (lst lst))
-      (cond ((null? lst)
-             (reverse result))
-            ((pair? lst)
-             (cond ((non-form? (car lst))
-                    (loop result (cdr lst)))
-                   ((pair? (car lst))
-                    (loop (cons (strip-non-forms (car lst)) result)
-                          (cdr lst)))
-                   (else
-                    (loop (cons (car lst) result) (cdr lst)))))
-            (else
-             (reverse-cons lst result)))))
-   (else
-    lst)))
-
 (define (scheme->spedl extractors port)
   (let loop ((comments '()) (extracted '()) (spedls '()) (code (read-scheme-code port)))
     (define (generate)
@@ -55,7 +30,7 @@
                (else
                 (error "unexpected READ-SCHEME-CODE output" (car code)))))
             (else
-             (let ((form (strip-non-forms (car code))))
+             (let ((form (car code)))
                (guard
                    (c
                     ((extract-error? c)
@@ -289,7 +264,7 @@
                        (loop mode args (cons line collected) spedls (cdr comments)))))))))))))))
 
 (define (extract-define form)
-  (match (cdr form)
+  (match (cdr (strip-non-forms form))
     ((cons (cons name args) body)
      `(procedure (^ (name ,name) (arguments ,@(args->proper-list args)))))
     ((list name (list-rest 'lambda args body))
@@ -300,14 +275,14 @@
      (raise-extract-error "unmatched define"))))
 
 (define (extract-define-syntax form)
-  (match (cdr form)
+  (match (cdr (strip-non-forms form))
     ((list name expr)
      `(syntax (^ (name ,name))))
     (else
      (raise-extract-error "unmatched define-syntax"))))
 
 (define (extract-define/optional-args form)
-  (match (cadr form)
+  (match (cadr (strip-non-forms form))
     ((list-rest name args)
      `(procedure
        (^ (name ,name)
