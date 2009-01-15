@@ -29,7 +29,7 @@
           (rnrs exceptions)
           (rnrs conditions)
           (rnrs io simple)
-          (spells lists)
+          (xitomatl srfi lists)
           (spells pathname)
           (spells condition)
           (spells tracing)
