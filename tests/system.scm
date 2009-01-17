@@ -63,7 +63,12 @@
          (items (group
                  (items
                   (structure (^ (name (bar qux)))
-                             (interface (export quizzy quazzy))
+                             (interface (export quizzy quazzy quxxy))
+                             (group
+                              (items (procedure (^ (name quxxy) (arguments a b c))))
+                              (documentation
+                               (para "Frobnicate " (var "a") " with " (var "b")
+                                     " and " (var "c") " .")))
                              (files ,(pathname-with-file *bar-dir* (make-file "qux" "scm")))))
                  (documentation
                   (para "Provides quxy methods for ensuring fooish behaviour"))))))

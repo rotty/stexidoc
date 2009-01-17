@@ -120,22 +120,26 @@
        (raise-extract-error "unmatched LIBRARY")))))
 
 (define (r6rs-library-clauses->spedl dir clauses)
-  (let loop ((files '()) (opens '()) (clauses clauses))
+  (let loop ((files '()) (opens '()) (items '()) (clauses clauses))
     (if (null? clauses)
-        `((files ,@(reverse files)))
+        (append (cdr (scheme->spedl usual-spedl-extractors (reverse items)))
+                (if (null? files)
+                    '()
+                    `((files ,@(reverse files)))))
         (let ((clause (car clauses)))
           (if (pair? clause)
               (case (car clause)
                 ((import)
-                 (loop files (cons (cdr clause) opens) (cdr clauses)))
+                 (loop files (cons (cdr clause) opens) items (cdr clauses)))
                 ((include-file)
                  (loop (cons (pathname-join dir (filespec->pathname (cadr clause)))
                              files)
                        opens
+                       items
                        (cdr clauses)))
                 (else
-                 (loop files opens (cdr clauses))))
-              (loop files opens (cdr clauses)))))))
+                 (loop files opens (cons clause items) (cdr clauses))))
+              (loop files opens items (cdr clauses)))))))
 
 (define (find-r6rs-libs dir)
   (define (library-file? pathname)
