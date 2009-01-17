@@ -6,8 +6,13 @@
   `((*TEXT* . ,(lambda (tag text) text))
     (*DEFAULT* . ,(lambda args args))))
 
-(define (scheme->spedl extractors port)
-  (let loop ((comments '()) (extracted '()) (spedls '()) (code (read-scheme-code port)))
+(define (scheme->spedl extractors port-or-code)
+  (let loop ((comments '())
+             (extracted '())
+             (spedls '())
+             (code (if (input-port? port-or-code)
+                       (read-scheme-code port-or-code)
+                       port-or-code)))
     (define (generate)
       (schmooz (reverse comments) (reverse extracted)))
     (cond ((and (null? code) (null? extracted) (null? comments))
@@ -46,10 +51,8 @@
                                 ((and (pair? form)
                                       (assq (car form) extractors)) =>
                                       (lambda (x) ((cdr x) form)))
-                                (else #f))))
-                   (if result
-                       (loop comments (cons result extracted) spedls (cdr code))
-                       (loop comments extracted spedls (cdr code))))))))))))
+                                (else '()))))
+                   (loop comments (append result extracted) spedls (cdr code)))))))))))
 
 (define (file-processing-error file c)
   (condition
@@ -246,11 +249,12 @@
                       ((match* "@[0-9]+" line)
                        => (lambda (matches)
                             (define (extracted-args)
-                              (cond ((and (not (null? extracted))
-                                          ((sxpath '(// ^ arguments)) (car extracted)))
-                                     => (lambda (as)
-                                          (arglist->str-vector (cdar as))))
-                                    (else #f)))
+                              (and-let* ((as (and (not (null? extracted))
+                                                  ((sxpath '(// ^ arguments))
+                                                   (car extracted)))))
+                                (arglist->str-vector (or (and (not (null? as))
+                                                              (cdar as))
+                                                         '()))))
                             (loop mode
                                   args
                                   (cons (expand-arg-macros matches
@@ -266,34 +270,42 @@
 (define (extract-define form)
   (match (cdr (strip-non-forms form))
     ((cons (cons name args) body)
-     `(procedure (^ (name ,name) (arguments ,@(args->proper-list args)))))
+     `((procedure (^ (name ,name) (arguments ,@(args->proper-list args))))))
     ((list name (list-rest 'lambda args body))
-     `(procedure (^ (name ,name) (arguments ,@(args->proper-list args)))))
+     `((procedure (^ (name ,name) (arguments ,@(args->proper-list args))))))
+    ((list name (list-rest 'case-lambda clauses))
+     (map (lambda (clause)
+            (match clause
+              ((list-rest arguments body)
+               `(procedure (^ (name ,name) (arguments ,@arguments))))
+              (else
+               (raise-extract-error "unmatch define wuth case-lambda"))))
+          clauses))
     ((list name expr)
-     `(variable (^ (name ,name))))
+     `((variable (^ (name ,name)))))
     (else
      (raise-extract-error "unmatched define"))))
 
 (define (extract-define-syntax form)
   (match (cdr (strip-non-forms form))
     ((list name expr)
-     `(syntax (^ (name ,name))))
+     `((syntax (^ (name ,name)))))
     (else
      (raise-extract-error "unmatched define-syntax"))))
 
 (define (extract-define/optional-args form)
   (match (cadr (strip-non-forms form))
     ((list-rest name args)
-     `(procedure
-       (^ (name ,name)
-          (arguments ,@(fold-right
-                        (lambda (arg rest)
-                          (cond ((and (pair? arg) (eq? (car arg) 'optional))
-                                 (cons `(optional ,@(map car (cdr arg)))
-                                       rest))
-                                (else (cons arg rest))))
-                        '()
-                        args)))))
+     `((procedure
+        (^ (name ,name)
+           (arguments ,@(fold-right
+                         (lambda (arg rest)
+                           (cond ((and (pair? arg) (eq? (car arg) 'optional))
+                                  (cons `(optional ,@(map car (cdr arg)))
+                                        rest))
+                                 (else (cons arg rest))))
+                         '()
+                         args))))))
     (else
      (raise-extract-error "unmatched define/optional-args"))))
 

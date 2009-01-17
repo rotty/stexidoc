@@ -33,6 +33,7 @@
           (rnrs conditions)
           (rnrs lists)
           (rnrs io simple)
+          (xitomatl srfi and-let*)
           (spells misc)
           (spells opt-args)
           (only (spells error) make-error-signaller)

@@ -39,8 +39,8 @@
 (define (extract-define-system form)
   (match (cdr form)
     ((list-rest name clauses)
-     `(system (^ (name ,name))
-              ,@clauses))
+     `((system (^ (name ,name))
+               ,@clauses)))
     (else
      (raise-extract-error "unmatched DEFINE-SYSTEM"))))
 
@@ -48,14 +48,14 @@
   (lambda (form)
     (match (cdr form)
       ((list-rest name (cons 'export exports) clauses)
-       `(structure (^ (name ,name))
-                   (interface (export ,@exports))
-                   ,@(structure-clauses->spedl dir clauses)))
+       `((structure (^ (name ,name))
+                    (interface (export ,@exports))
+                    ,@(structure-clauses->spedl dir clauses))))
       ((list-rest name interface clauses)
-       `(structure (^ (name ,name))
-                   (interface (^ (name interface))
-                     (export ,@(lookup-interface interface)))
-                   ,@(structure-clauses->spedl dir clauses)))
+       `((structure (^ (name ,name))
+                    (interface (^ (name interface))
+                      (export ,@(lookup-interface interface)))
+                    ,@(structure-clauses->spedl dir clauses))))
       (else
        (raise-extract-error "unmatched DEFINE-STRUCTURE")))))
 
@@ -113,9 +113,9 @@
   (lambda (form)
     (match (strip-non-forms (cdr form) 2)
       ((list-rest name (cons 'export exports) clauses)
-       `(structure (^ (name ,name))
-                   (interface (export ,@exports))
-                   ,@(r6rs-library-clauses->spedl dir clauses)))
+       `((structure (^ (name ,name))
+                    (interface (export ,@exports))
+                    ,@(r6rs-library-clauses->spedl dir clauses))))
       (else
        (raise-extract-error "unmatched LIBRARY")))))
 
