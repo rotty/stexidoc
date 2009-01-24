@@ -134,16 +134,13 @@
                                    "no argument with number ~a" n)))
                            "} "))))))))
 
-(define irregex-match-start-index irregex-match-start)
-(define irregex-match-end-index irregex-match-end)
-
 (define (match* pat str)
   (let loop ((pos 0) (matches '()))
     (cond ((and (< pos (string-length str))
                 (irregex-search pat str pos))
            => (lambda (match)
-                (let ((start (irregex-match-start-index match))
-                      (end (irregex-match-end-index match)))
+                (let ((start (irregex-match-start-index match 0))
+                      (end (irregex-match-end-index match 0)))
                   (loop end (cons (cons start end) matches)))))
           (else
            (and (not (null? matches)) (reverse matches))))))
