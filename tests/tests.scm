@@ -1,9 +1,9 @@
 ((systems stexidoc)
  (files
-  ("read.scm" stexidoc.read-r5rs spells.strings rnrs.io.ports)
-  ("extract.scm" stexidoc.extract spells.strings rnrs.io.ports)
-  ("system.scm" stexidoc.system spells.pathname spells.strings)
-  ("texi.scm" stexidoc.texi stexidoc.extract spells.strings rnrs.io.ports)
-  ("html.scm" stexidoc.html spells.pathname spells.filesys rnrs.control)
+  ("read.scm" stexidoc.read-r5rs srfi.:13.strings rnrs.io.ports testeez)
+  ("extract.scm" stexidoc.extract srfi.:13.strings rnrs.io.ports testeez)
+  ("system.scm" stexidoc.system spells.pathname srfi.:13.strings testeez)
+  ("texi.scm" stexidoc.texi stexidoc.extract srfi.:13.strings rnrs.io.ports testeez)
+  ("html.scm" stexidoc.html spells.pathname spells.filesys rnrs.control testeez)
   ))
 
