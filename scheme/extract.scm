@@ -152,8 +152,12 @@
                     (match item
                       ((list-rest name (list-rest '^ attributes) clauses)
                        `(,name
-                         (^ ,@attributes
-                            (arguments ,@(map string->symbol (vector->list args))))
+                         (^ (arguments
+                             ,@(map string->symbol (vector->list args)))
+                            ,@(filter (lambda (x)
+                                        (not (and (pair? x)
+                                                  (eq? (car x) 'arguments))))
+                                      attributes))
                          ,@clauses))
                       (else item)))
                   items))
