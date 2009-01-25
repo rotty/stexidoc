@@ -124,28 +124,27 @@
 (define (emit-structure-html title name subs docs directory)
   (let ((items (assq-ref subs 'items))
         (name-str (structname->namestring name)))
-    (if items
-        (call-with-output-file
-            (x->namestring
-             (pathname-with-file directory (make-file name-str "html")))
-          (lambda (port)
-            (let ((stexi (spedl->stexi `(*fragment*
-                                         (group (items
-                                                 (structure (^ (name ,name))
-                                                            ,@subs))
-                                                (documentation ,@docs))))))
-              (display xhtml-doctype port)
-              (sxml->xml
-               (wrap-html title
-                          "."
-                          "../spe-doc.html"
-                          (map stexi->shtml (cdr stexi)))
-               port)))))))
+    (call-with-output-file
+        (x->namestring
+         (pathname-with-file directory (make-file name-str "html")))
+      (lambda (port)
+        (let ((stexi (spedl->stexi `(*fragment*
+                                     (group (items
+                                             (structure (^ (name ,name))
+                                                        ,@subs))
+                                            (documentation ,@docs))))))
+          (display xhtml-doctype port)
+          (sxml->xml
+           (wrap-html title
+                      "."
+                      "../spe-doc.html"
+                      (map stexi->shtml (cdr stexi)))
+           port))))))
 
 (define (systems->html-rules title root-path scm-url)
   `((items
      ((group *MACRO* . ,(lambda (tag . subs)
-                          (let ((items (assq-ref subs 'items))
+                          (let ((items ((sxpath '(items *)) (cons tag subs)))
                                 (docs (assq 'documentation subs)))
                             `(*systems
                               ,@(map (lambda (item) (append item (list docs)))

@@ -122,7 +122,7 @@
 (define (r6rs-library-clauses->spedl dir clauses)
   (let loop ((files '()) (opens '()) (items '()) (clauses clauses))
     (if (null? clauses)
-        (append (cdr (scheme->spedl usual-spedl-extractors (reverse items)))
+        (cons `(items ,@(cdr (scheme->spedl usual-spedl-extractors (reverse items))))
                 (if (null? files)
                     '()
                     `((files ,@(reverse files)))))

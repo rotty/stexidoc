@@ -11,6 +11,7 @@
           (spells match)
           (spells include)
           (sxml transform)
+          (sxml sxpath)
           (stexidoc system))
 
   (include-file ((stexidoc scheme) texi))

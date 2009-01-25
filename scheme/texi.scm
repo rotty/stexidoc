@@ -22,9 +22,10 @@
         ((structure *MACRO* .
                     ,(lambda (tag attlist . subs)
                        (let ((name (car (assq-ref (cdr attlist) 'name)))
-                             (bindings (assq-ref subs 'items))
+                             (bindings ((sxpath '(items *)) (cons tag subs)))
+                             (docs (or (assq-ref subs 'documentation) '()))
                              (interface (assq-ref subs 'interface)))
-                         `(structure* ,@(filter-items interface bindings)))))
+                         `(structure* ,docs ,@(filter-items interface bindings)))))
          (structure* . ,process-structure*)
          (procedure . ,(make-def 'defun 'defunx))
          (arguments *PREORDER* . ,arguments->stexi)
@@ -47,11 +48,12 @@
         (else
          '(*fragment*))))
 
-(define (process-structure* tag . items)
+(define (process-structure* tag docs . items)
   (lambda (to-wrap)
     `((section "Overview")
       ,@to-wrap
       (section "Usage")
+      ,@docs
       ,@(append-map cdr items))))
 
 (define (arguments->stexi tag . args)
@@ -65,7 +67,11 @@
            ((list-rest 'optional opt-args)
             `("[" ,@(map symbol->string opt-args) "]"
               ,@args))
-           (else (cons (symbol->string arg) args))))
+           (else
+            (cons (if (symbol? arg)
+                      (symbol->string arg)
+                      arg)
+                  args))))
        '()
        args)))
 
