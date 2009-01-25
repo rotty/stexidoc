@@ -15,5 +15,5 @@
         (systems->html "Test" *out-dir*
                        (pathname-with-file *bar-dir* (make-file "sys-def" "scm"))))
       (lambda ()
-        (directory-fold *out-dir* delete-file)
+        (directory-fold *out-dir* (lambda (fn) (delete-file fn) (values)))
         (delete-file *out-dir*)))))

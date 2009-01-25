@@ -13,6 +13,7 @@
           (spells alist)
           (spells parameter)
           (only (spells error) make-error-signaller)
+          (spells tracing)
           (spells include)
           (sxml simple)
           (sxml transform)

@@ -45,37 +45,50 @@
       (spedl->structure-html title spedl html-dir))))
 
 (define (for-each-structure proc spedl)
-  (let ((structures ((sxpath '(group items system items)) spedl)))
-    (pre-post-order
-     structures
-     `((items
-        ((group *MACRO* . ,(lambda (tag . subs)
-                             (let ((items (assq-ref subs 'items))
-                                   (docs (assq 'documentation subs)))
-                               `(*structures
-                                 ,@(filter-map
-                                    (lambda (item)
-                                      (and (pair? item)
-                                           (eq? (car item) 'structure)
-                                           `(*group ,item ,docs)))
-                                    items)))))
-         (*structures
-          ((*group
-            ((structure
-              ((^ *PREORDER* . ,list)
-               (files *PREORDER* .
-                      ,(lambda (tag . files)
-                         `(items ,@(files->spedl usual-spedl-extractors
-                                                files))))
-               (*DEFAULT* *PREORDER* . ,list))
-              . ,list)
-             (documentation *PREORDER* . ,list))
-            . ,(lambda (tag . subs)
-                 (proc (assq 'structure subs)
-                       (assq-ref subs 'documentation)))))
-          . ,(lambda args '()))
-         (documentation *PREORDER* . ,list))        
-        . ,(lambda args '()))))))
+  (let* ((structures ((sxpath '(group items system items)) spedl))
+         (paired (pair-struct-docs (car structures)))
+         (expanded (expand-struct-files paired)))
+    (for-each (lambda (group)
+                (proc (cadr group)
+                      (cdaddr group)))
+              ((sxpath '(*structures *group)) expanded))))
+
+(define (pair-struct-docs structures)
+  (pre-post-order
+   structures
+   `((items
+      ((group *PREORDER* .
+              ,(lambda (tag . subs)
+                 (let ((items (assq-ref subs 'items))
+                       (docs (assq 'documentation subs)))
+                   `(*structures
+                     ,@(filter-map
+                        (lambda (item)
+                          (and (pair? item)
+                               (eq? (car item) 'structure)
+                               `(*group ,item ,docs)))
+                        items)))))
+       (documentation *PREORDER* . ,list))
+      . ,list))))
+
+(define (expand-struct-files structs)
+  (pre-post-order
+   structs
+   `((items
+      ((*structures
+        ((*group
+          ((structure
+            ((^ *PREORDER* . ,list)
+             (files *PREORDER* .
+                    ,(lambda (tag . files)
+                       `(items ,@(files->spedl usual-spedl-extractors
+                                               files))))
+             (*DEFAULT* *PREORDER* . ,list))
+            . ,list)
+           (documentation *PREORDER* . ,list))
+          . ,list))
+        . ,list))
+      . ,list))))
 
 (define (spedl->structure-html title spedl html-dir)
   (for-each-structure
@@ -112,8 +125,9 @@
   (let ((items (assq-ref subs 'items))
         (name-str (structname->namestring name)))
     (if items
-        (call-with-output-file (x->namestring
-                                (pathname-with-file directory (make-file name-str "html")))
+        (call-with-output-file
+            (x->namestring
+             (pathname-with-file directory (make-file name-str "html")))
           (lambda (port)
             (let ((stexi (spedl->stexi `(*fragment*
                                          (group (items
@@ -127,7 +141,7 @@
                           "../spe-doc.html"
                           (map stexi->shtml (cdr stexi)))
                port)))))))
-                                 
+
 (define (systems->html-rules title root-path scm-url)
   `((items
      ((group *MACRO* . ,(lambda (tag . subs)
