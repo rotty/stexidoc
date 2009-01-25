@@ -39,7 +39,7 @@
                (guard
                    (c
                     ((extract-error? c)
-                     (format-exception
+                     (display-condition
                       (condition
                        (make-extract-error)
                        (make-message-condition
@@ -72,9 +72,7 @@
       (guard (c ((parser-error? c)
                  (raise-file-processing-error file c))
                 ((extract-error? c)
-                 (raise-file-processing-error file c)
-                 ;;(format-exception (current-error-port))
-                 ))
+                 (raise-file-processing-error file c)))
         (call-with-input-file (x->namestring file)
           (lambda (port)
             (scheme->spedl extractors port))))))

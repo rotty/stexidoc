@@ -10,7 +10,7 @@
     (for-each display `("Generating system reference in " ,dir #\newline))
     (create-directory* dir)
     (guard (c ((error? c)
-               (format-exception c (current-error-port))
+               (display-condition c (current-error-port))
                (exit 1)))
       (apply systems->html title (cddr argv))
       (exit 0))))
