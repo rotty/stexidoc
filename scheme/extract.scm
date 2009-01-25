@@ -130,7 +130,7 @@
                                  (else
                                   (raise-extract-error
                                    "no argument with number ~a" n)))
-                           "} "))))))))
+                           "}"))))))))
 
 (define (match* pat str)
   (let loop ((pos 0) (matches '()))
