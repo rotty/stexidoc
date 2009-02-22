@@ -148,7 +148,7 @@
     ,@(cond (args
              (map (lambda (item)
                     (match item
-                      ((list-rest name (list-rest '^ attributes) clauses)
+                      ((name ('^ . attributes) . clauses)
                        `(,name
                          (^ (arguments
                              ,@(map string->symbol (vector->list args)))
@@ -268,33 +268,33 @@
 
 (define (extract-define form)
   (match (cdr (strip-non-forms form))
-    ((cons (cons name args) body)
+    (((name . args) . body)
      `((procedure (^ (name ,name) (arguments ,@(args->proper-list args))))))
-    ((list name (list-rest 'lambda args body))
+    ((name ('lambda args . body))
      `((procedure (^ (name ,name) (arguments ,@(args->proper-list args))))))
-    ((list name (list-rest 'case-lambda clauses))
+    ((name ('case-lambda . clauses))
      (map (lambda (clause)
             (match clause
-              ((list-rest arguments body)
+              ((arguments . body)
                `(procedure (^ (name ,name) (arguments ,@arguments))))
               (else
-               (raise-extract-error "unmatch define wuth case-lambda"))))
+               (raise-extract-error "unmatched define with case-lambda"))))
           clauses))
-    ((list name expr)
+    ((name expr)
      `((variable (^ (name ,name)))))
     (else
      (raise-extract-error "unmatched define"))))
 
 (define (extract-define-syntax form)
   (match (cdr (strip-non-forms form))
-    ((list name expr)
+    ((name expr)
      `((syntax (^ (name ,name)))))
     (else
      (raise-extract-error "unmatched define-syntax"))))
 
 (define (extract-define/optional-args form)
   (match (cadr (strip-non-forms form))
-    ((list-rest name args)
+    ((name . args)
      `((procedure
         (^ (name ,name)
            (arguments ,@(fold-right

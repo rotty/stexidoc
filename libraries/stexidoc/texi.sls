@@ -9,6 +9,7 @@
           (spells misc)
           (spells format)
           (spells match)
+          (spells tracing)
           (spells include)
           (sxml transform)
           (sxml sxpath)

@@ -46,7 +46,7 @@
           (srfi :13 strings)
           (srfi :14 char-sets)
           (spells pathname)
-          (spells string-substitute)
+          (spells string-utils)
           (spells tracing)
           (spells include)
           (xitomatl irregex)

@@ -61,10 +61,10 @@
     ,@(fold-right
        (lambda (arg args)
          (match arg
-           ((list 'rest-list arg)
+           (('rest-list arg)
             (append! (list "." (symbol->string arg) 
                            args)))
-           ((list-rest 'optional opt-args)
+           (('optional . opt-args)
             `("[" ,@(map symbol->string opt-args) "]"
               ,@args))
            (else
