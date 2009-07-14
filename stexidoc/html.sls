@@ -2,8 +2,9 @@
 
 (library (stexidoc html)
   (export systems->html)
-  (import (except (rnrs base) error string-copy string->list string-for-each)
-          (rnrs lists)
+  (import (except (rnrs base)
+                  error string-copy string->list string-for-each
+                  map for-each)
           (rnrs io ports)
           (rnrs io simple)
           (srfi :1 lists)
@@ -11,13 +12,13 @@
           (srfi :13 strings)
           (spells pathname)
           (spells alist)
-          (spells parameter)
+          (srfi :39 parameters)
           (only (spells error) make-error-signaller)
           (spells tracing)
           (spells include)
-          (sxml simple)
-          (sxml transform)
-          (sxml sxpath)
+          (xitomatl ssax tree-trans)
+          (xitomatl sxml-tools sxpath)
+          (xitomatl ssax extras)
           (texinfo html)
           (stexidoc util)
           (stexidoc system)
@@ -26,4 +27,4 @@
 
   (define error (make-error-signaller "stexidoc html"))
   
-  (include-file ((stexidoc scheme) html)))
+  (include-file ((stexidoc private) html)))

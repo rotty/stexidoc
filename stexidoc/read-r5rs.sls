@@ -22,8 +22,6 @@
 ;;; Code:
 #!r6rs
 
-#!r6rs
-
 (library (stexidoc read-r5rs)
   (export read-scheme-code
           non-form?
@@ -39,7 +37,7 @@
           (rnrs conditions)
           (spells misc)
           (spells opt-args)
-          (spells parameter)
+          (srfi :39 parameters)
           (spells delimited-readers)
           (spells condition)
           (only (spells error) make-error-signaller)
@@ -79,6 +77,6 @@
       ((lst)
        (strip-non-forms lst #f))))
 
-  (include-file ((stexidoc scheme) read))
+  (include-file ((stexidoc private) read))
 
   )

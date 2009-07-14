@@ -2,7 +2,7 @@
 
 ;;@ Contains facilities to ensure fooish behaviour
 (define-system bar
-  (r6rs-libs "."))
+  (r6rs-libraries "."))
 
 ;; @subsection Blah
 

@@ -24,7 +24,10 @@
 
 (library (stexidoc util)
   (export format-exception maybe-symbol->string)
-  (import (except (rnrs base) error string-copy string->list string-for-each)
+  (import (except (rnrs base)
+                  error
+                  string-copy string->list string-for-each
+                  map for-each)
           (rnrs control)
           (rnrs exceptions)
           (rnrs conditions)
@@ -34,8 +37,8 @@
           (spells condition)
           (spells tracing)
           (spells include)
-          (sxml transform))
+          (xitomatl ssax tree-trans))
 
-  (include-file ((stexidoc scheme) util))
+  (include-file ((stexidoc private) util))
   
   )
