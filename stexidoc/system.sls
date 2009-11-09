@@ -2,19 +2,14 @@
 
 (library (stexidoc system)
   (export systems->spedl interface-exported-names)
-  (import (except (rnrs base)
-                  error string-copy string->list string-for-each
-                  map for-each)
-          (rnrs io simple)
-          (rnrs io ports)
-          (srfi :13 strings)
+  (import (except (rnrs) file-exists? delete-file)
+          (only (srfi :1 lists)
+                append-map filter-map drop-right last)
           (srfi :8 receive)
           (spells format)
           (spells alist)
-          (srfi :1 lists)
           (only (spells error) make-error-signaller)
           (spells match)
-          (spells table)
           (srfi :39 parameters)
           (spells pathname)
           (spells filesys)
@@ -27,8 +22,6 @@
           (stexidoc extract)
           (stexidoc read-r5rs))
 
-  (define error (make-error-signaller "stexidoc system"))
-  
   (include-file ((stexidoc private) system))
 
   )

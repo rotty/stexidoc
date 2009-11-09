@@ -85,7 +85,7 @@
                   (else #f)))
               clauses))
 
-(define current-interfaces (make-parameter (make-table 'eq)))
+(define current-interfaces (make-parameter (make-eq-hashtable)))
 
 (define (interface-exports interface)
   (cond ((symbol? interface)
@@ -106,7 +106,7 @@
              (continue (=> out (cons elt out))))))))
 
 (define (lookup-interface name)
-  (or (table-ref (current-interfaces) name)
+  (or (hashtable-ref (current-interfaces) name #f)
       (raise-extract-error
        "reference to unknown interface ~a" name)))
 
@@ -114,10 +114,10 @@
   (match (cdr form)
     ((name ('compound-interface . interfaces))
      (let ((exports (append-map interface-exported-names interfaces)))
-       (table-set! (current-interfaces) name exports)
+       (hashtable-set! (current-interfaces) name exports)
        `(interface (^ (name ,name)) ,(caddr form))))
     ((name ('export . exports))
-     (table-set! (current-interfaces) name exports)
+     (hashtable-set! (current-interfaces) name exports)
      `(interface (^ (name ,name)) ,(caddr form)))
     (else
      (raise-extract-error "unmatched DEFINE-INTERFACE"))))
@@ -182,7 +182,7 @@
                             (map maybe-symbol->string (drop-right fspec 1))
                             (make-file (maybe-symbol->string (last fspec)) ext))))
         (else
-         (error "cannot coerce to pathname" fspec))))
+         (error 'filespec->pathname "cannot coerce to pathname" fspec))))
 
 (define (config-language-extractors dir)
   `((define-structure . ,(extract-define-structure dir))
