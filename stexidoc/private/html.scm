@@ -27,7 +27,7 @@
       (display xhtml-doctype port)
       (sxml->xml (pre-post-order
                   spedl
-                  (systems->html-rules title "." "../spe-doc"))
+                  (systems->html-rules title "."))
                  port))))
 
 (define (spedl-resolve-ref node-name manual-name)
@@ -137,11 +137,10 @@
           (sxml->xml
            (wrap-html title
                       "."
-                      "../spe-doc.html"
                       (map stexi->shtml (cdr stexi)))
            port))))))
 
-(define (systems->html-rules title root-path scm-url)
+(define (systems->html-rules title root-path)
   `((items
      ((group *MACRO* . ,(lambda (tag . subs)
                           (let ((items ((sxpath '(items *)) (cons tag subs)))
@@ -198,7 +197,7 @@
                              ,@(cddr s)))
                          systems)))))
      . ,(lambda (tag . subs)
-          (wrap-html title root-path scm-url
+          (wrap-html title root-path
                      `((h2 "Overview")
                        ,@(map first subs)
                        ,@(append-map second subs)))))
@@ -231,12 +230,14 @@
              (else
               (error "unexpected tag" (caar rows))))))))
 
-(define (wrap-html title root-path scm-url body)
+(define stexidoc-homepage-url "http://github.com/rotty/stexidoc")
+
+(define (wrap-html title root-path body)
   `(html (^ (xmlns "http://www.w3.org/1999/xhtml"))
     (head
      (title ,title)
      (meta (^ (name "Generator")
-              (content "SPE-doc, a Scheme documentation extractor")))
+              (content "STexiDoc, a Scheme documentation extractor")))
      (style (^ (type "text/css") (media "screen"))
        "@import url("
        ,(x->namestring (pathname-with-file root-path "screen.css"))
@@ -248,6 +249,6 @@
                ,@body)
           (div (^ (id "footer"))
                "powered by "
-               (a (^ (href ,scm-url)) "spe-doc"))))))
+               (a (^ (href ,stexidoc-homepage-url)) "stexidoc"))))))
 
 ;; arch-tag: 405522a1-6061-4f34-a0ad-85aa8ceb4425
