@@ -4,20 +4,28 @@
 (define (comment text)
   (make-non-form `(comment ,text)))
 
-(testeez "read-scheme-code"
-  (test/equal "single form"
-    (read-scheme-code (line-port "(foo 1 2 'bar)"))
-    '((foo 1 2 'bar)))
-  (test/equal "form and comment"
-    (read-scheme-code (line-port "(foo 42)"
-                                 ";; Hi there!"))
-    `((foo 42)
-      ,(comment "; Hi there!")))
-  (test/equal "nested comment"
+(define-test-suite read-tests
+  "Reading Scheme code")
+
+(define-test-case read-tests single-form ()
+  (test-equal '((foo 1 2 'bar))
+    (read-scheme-code (line-port "(foo 1 2 'bar)"))))
+
+(define-test-case read-tests form-and-comment ()
+  (test-equal `((foo 42)
+                ,(comment "; Hi there!"))
+   (read-scheme-code (line-port "(foo 42)"
+                                ";; Hi there!"))))
+
+(define-test-case read-tests nested-comment ()
+  (test-equal `((library (foo)
+                  ,(comment "; FIXME: implement")))
     (read-scheme-code (line-port "(library (foo)"
                                  "  ;; FIXME: implement"
-                                 ")"))
-    `((library (foo)
-        ,(comment "; FIXME: implement")))))
+                                 ")"))))
 
+(run-test-suite read-tests)
 
+;; Local Variables:
+;; scheme-indent-styles: (trc-testing)
+;; End:
