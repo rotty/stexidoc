@@ -1,0 +1,19 @@
+# -*- indented-text -*-
+
+Project Maintainer:  Andreas Rottmann <a.rottmann@gmx.at>
+
+In the following, the files of the spells project are listed, grouped
+by copyright holders and licenses; roughly following the DEP-5
+proposed syntax (http://dep.debian.net/deps/dep5/).
+
+
+Copyright: 2005-2009, Andreas Rottmann <a.rottmann@gmx.at>
+Files: *
+License: GPL-3+
+
+Copyright: 1993-2003, Richard Kelsey and Jonathan Rees
+           1994-2003, Olin Shivers and Brian D. Carlstrom
+           1999-2003, Martin Gasbichler
+           2001-2003, Michael Sperber
+Files: stexidoc/private/read.scm
+License: BSD
