@@ -1,19 +1,36 @@
-; -*- Mode: Scheme; Syntax: Scheme; Package: Scheme; -*-
-; Copyright (c) 1993-2005 by Richard Kelsey and Jonathan Rees. See file COPYING.
+;;; read.scm --- A little Scheme reader
 
+;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;;
+;; Based on code from Scheme 48 and scsh; see file COPYING.BSD and
+;; AUTHORS for exact license conditions and list of authors.
 
-; A little Scheme reader.
+;; This program is free software, you can redistribute it and/or
+;; modify it under the terms of the new-style BSD license.
 
-; Nonstandard things used:
-;  Ascii stuff: char->ascii, ascii->char, ascii-whitespaces, ascii-limit
-;    (for dispatch table; portable definitions in alt/ascii.scm)
-; This is defined in spells.ascii -rotty
-;  reverse-list->string  -- ok to define as follows:
-;    (define (reverse-list->string l n)
-;      (list->string (reverse l)))
-;  make-immutable! -- ok to define as follows:
-;    (define (make-immutable! x) x)
-;  signal (only for use by reading-error; easily excised)
+;; You should have received a copy of the BSD license along with this
+;; program. If not, see <http://www.debian.org/misc/bsd.license>.
+
+;;; Commentary:
+
+;; This is a modified version of the Scheme48 reader, including the
+;; following changes:
+;; - Returns non-forms (e.g. comments) read, as `non-form' objects
+;; - Accepts some additional syntax beyond R5RS, such as a
+;;   subset of the R6RS additions.
+
+;; Nonstandard things used:
+;;  Ascii stuff: char->ascii, ascii->char, ascii-whitespaces, ascii-limit
+;;    (for dispatch table; portable definitions in alt/ascii.scm)
+;; This is defined in spells.ascii --rotty
+;;  reverse-list->string  -- ok to define as follows:
+;;    (define (reverse-list->string l n)
+;;      (list->string (reverse l)))
+;;  make-immutable! -- ok to define as follows:
+;;    (define (make-immutable! x) x)
+;;  signal (only for use by reading-error; easily excised)
+
+;;; Code:
 
 (define bel (ascii->char 7))
 (define bs  (ascii->char  8))
@@ -420,4 +437,7 @@
 	    '(#\b #\o #\d #\x #\i #\e)))
 
 
-;; arch-tag: a3610372-2329-4a23-b17d-35a53e9c3f06
+;; Local Variables:
+;; scheme-indent-styles: ((set-standard-read-macro! 2))
+;; End:
+
