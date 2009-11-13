@@ -406,7 +406,7 @@
 (define-sharp-macro #\;
   (lambda (c port)
     (read-char port)
-    (make-non-form 'comment (sub-read-carefully port))))
+    (make-non-form 'expression-comment (sub-read-carefully port))))
 
 (let ((number-sharp-macro
        (lambda (c port)
