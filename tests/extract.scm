@@ -1,3 +1,8 @@
+(import (rnrs)
+        (only (srfi :13 strings) string-join)
+        (spells testing)
+        (stexidoc extract))
+
 (define (line-port . lines)
   (open-string-input-port (string-join lines (string #\newline))))
 
