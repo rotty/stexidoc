@@ -26,4 +26,12 @@
 (define (maybe-symbol->string x)
   (if (symbol? x) (symbol->string x) x))
 
+(define (merge-fragments a b)
+  (unless (and (pair? a)
+               (eq? '*fragment* (car a))
+               (pair? b)
+               (eq? '*fragment* (car b)))
+    (assertion-violation 'merge-fragments "invalid arguments" a b))
+  (cons '*fragment* (append (cdr a) (cdr b))))
+
 ;; arch-tag: 093180ca-4e45-4f17-8ecc-58b10e4d16b9

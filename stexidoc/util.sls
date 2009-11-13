@@ -23,7 +23,7 @@
 #!r6rs
 
 (library (stexidoc util)
-  (export format-exception maybe-symbol->string)
+  (export format-exception maybe-symbol->string merge-fragments)
   (import (except (rnrs base)
                   error
                   string-copy string->list string-for-each
