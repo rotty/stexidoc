@@ -28,35 +28,35 @@
           raise-extract-error
           usual-spedl-extractors
           universal-spedl-rules)
-  (import (except (rnrs base)
-                  error string-copy string->list string-for-each
-                  map for-each)
-          (rnrs exceptions)
-          (rnrs conditions)
-          (rnrs io simple)
+  (import (rnrs)
           (srfi :2 and-let*)
           (spells misc)
           (spells opt-args)
-          (only (spells error) make-error-signaller)
           (spells format)
           (srfi :39 parameters)
           (spells condition)
-          (srfi :1 lists)
+          (only (srfi :1 lists) append-map)
           (spells alist)
           (spells match)
-          (srfi :13 strings)
+          (only (srfi :13 strings)
+                string-index
+                string-join
+                string-prefix?
+                string-skip
+                string-trim
+                string-tokenize)
           (srfi :14 char-sets)
           (spells pathname)
           (spells string-utils)
           (spells tracing)
           (spells include)
-          (xitomatl irregex)
+          (spells foof-loop)
+          (spells fmt) ;debug
+          (spells irregex)
           (xitomatl sxml-tools sxpath)
           (texinfo)
           (stexidoc util)
           (stexidoc read-r5rs))
-
-  (define error (make-error-signaller "stexidoc extractor"))
 
   (include-file ((stexidoc private) extract))
 

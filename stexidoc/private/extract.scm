@@ -1,58 +1,59 @@
 ;; -*- Mode: Scheme; scheme48-package: stexidoc.extract; -*-
 
-(define nl (string #\newline))
-
 (define universal-spedl-rules
   `((*TEXT* . ,(lambda (tag text) text))
     (*DEFAULT* . ,(lambda args args))))
 
 (define (scheme->spedl extractors port-or-code)
-  (let loop ((comments '())
-             (extracted '())
-             (spedls '())
-             (code (if (input-port? port-or-code)
-                       (read-scheme-code port-or-code)
-                       port-or-code)))
-    (define (generate)
-      (schmooz (reverse comments) (reverse extracted)))
-    (cond ((and (null? code) (null? extracted) (null? comments))
-           `(*fragment* ,@(reverse spedls)))
-          ((null? code)
-           (loop '() '() (append (generate) spedls) code))
+  (define (generate comments extracted)
+    (schmooz (reverse comments) (reverse extracted)))
+  (loop continue ((with comments '())
+                  (with extracted '())
+                  (with spedls '())
+                  (with code
+                        (if (input-port? port-or-code)
+                            (read-scheme-code port-or-code)
+                            port-or-code)
+                        (cdr code))
+                  (until (null? code)))
+    => `(*fragment* ,@(reverse (append (generate comments extracted) spedls)))
+    (cond ((non-form? (car code))
+           (case (non-form-type (car code))
+             ((comment)
+              (let ((comment (non-form-data (car code))))
+                (cond
+                  ((not (null? extracted))
+                   (continue (=> comments '())
+                             (=> extracted '())
+                             (=> spedls (append (generate comments extracted)
+                                                spedls))
+                             (=> code code)))
+                  (else
+                   (continue (=> comments (cons comment comments)))))))
+             ((directive)
+              (continue))
+             (else
+              (assertion-violation 'scheme->spedl
+                                   "unexpected READ-SCHEME-CODE output"
+                                   (car code)))))
           (else
-           (cond
-            ((non-form? (car code))
-             (case (cadar code)
-               ((comment)
-                (let ((comment (caddar code)))
-                  (cond
-                   ((not (null? extracted))
-                    (loop '() '() (append (generate) spedls) code))
-                   (else
-                    (loop (cons comment comments) extracted spedls (cdr code))))))
-               ((directive)
-                (loop comments extracted spedls (cdr code)))
-               (else
-                (error "unexpected READ-SCHEME-CODE output" (car code)))))
-            (else
-             (let ((form (car code)))
-               (guard
-                   (c
-                    ((extract-error? c)
-                     (display-condition
-                      (condition
-                       (make-extract-error)
-                       (make-message-condition
-                        (format #f "while processing ~s" form))
-                       (make-stacked-condition c))
-                      (current-error-port))
-                     (loop '() '() spedls (cdr code))))
-                 (let ((result (cond
-                                ((and (pair? form)
-                                      (assq (car form) extractors)) =>
-                                      (lambda (x) ((cdr x) form)))
-                                (else '()))))
-                   (loop comments (append result extracted) spedls (cdr code)))))))))))
+           (let ((form (car code)))
+             (guard (c ((extract-error? c)
+                        (display-condition
+                         (condition
+                          (make-extract-error)
+                          (make-message-condition
+                           (format #f "while processing ~s" form))
+                          (make-stacked-condition c))
+                         (current-error-port))
+                        (continue (=> comments '())
+                                  (=> extracted '()))))
+               (let ((result (cond
+                               ((and (pair? form)
+                                     (assq (car form) extractors)) =>
+                                     (lambda (x) ((cdr x) form)))
+                               (else '()))))
+                 (continue (=> extracted (append result extracted))))))))))
 
 (define (file-processing-error file c)
   (condition
@@ -167,104 +168,110 @@
      ((and (string-prefix? "@" uncommented)
            (or (= (string-length uncommented) 1) ;; lone "@"
                (string-skip uncommented char-set:whitespace))) ;; "@" followed by space
-      (substring/shared uncommented 1 (string-length uncommented)))
+      (substring uncommented 1 (string-length uncommented)))
      (else
       uncommented))))
 
-(define schmooz
-  (let ((starts `((verbatim . ,(irregex "^\\s*;*\\s*@(def|(sub)*(section|heading))"))
-                  (stop     . ,(irregex "^\\s*;*@stop\\s*$"))
-                  (args     . ,(irregex "^\\s*;*@args(\\s+|$)"))
-                  (schmooz . ,(irregex "^\\s*;*@(\\s+|$)")))))
-    (lambda (comments extracted)
-      (let loop ((mode 'skip)
-                 (args #f)
-                 (collected '())
-                 (spedls '())
-                 (comments comments))
-        (define (generate)
-          (let ((texi-fragment (string-join (reverse collected) nl)))
-            (guard
-                (c ((parser-error? c)
-                    (raise-extract-error
-                     "failed to parse texinfo fragment: ~a: ~s~%\"~%~a~%\""
-                     (condition-message c) (condition-irritants c)
-                     texi-fragment)))
-              (let ((stexi (cdr (texi-fragment->stexi texi-fragment))))
-                (cond ((and (not (null? extracted)) (eq? mode 'schmooz))
-                       `(group ,(arg-extended-items extracted args)
-                               (documentation ,@stexi)))
-                      ((not (null? stexi))
-                       `(documentation ,@stexi))
-                      (else #f))))))
-        (cond
-         ((and (null? comments) (null? collected))
-          (filter values spedls))
-         ((null? comments)
-          (loop mode args '() (cons (generate) spedls) comments))
-         (else
-          (let* ((line (car comments))
-                 (line-kind (let next-start ((starts starts))
-                                 (if (null? starts)
-                                     'regular
-                                     (if (irregex-search (cdar starts) line)
-                                         (caar starts)
-                                         (next-start (cdr starts)))))))
-            (if (eq? line-kind 'stop)
-                (loop 'skip args '() (cons (generate) spedls) (cdr comments))
-                (case mode
-                  ((skip)
-                   (if (eq? line-kind 'regular)
-                       (loop 'skip #f collected spedls (cdr comments))
-                       (loop line-kind
-                             #f
-                             collected
-                             spedls
-                             comments)))
-                  ((verbatim)
-                   (if (eq? line-kind 'schmooz)
-                       (loop 'schmooz args '() (cons (generate) spedls) comments)
-                       (loop mode
-                             #f
-                             (cons (string-trim line #\;) collected)
-                             spedls
-                             (cdr comments))))
-                  ((args)
-                   (loop 'schmooz
-                         (let ((space-pos (string-index line #\space)))
-                           (and space-pos
-                                (list->vector
-                                 (string-tokenize
-                                  (substring/shared line
-                                                    (+ space-pos 1)
-                                                    (string-length line))
-                                  char-set:graphic))))
-                         collected
-                         spedls
-                         (cdr comments)))
-                  ((schmooz)
-                   (let ((line (schmooz-trim line)))
-                     (cond
-                      ((match* "@[0-9]+" line)
-                       => (lambda (matches)
-                            (define (extracted-args)
-                              (and-let* ((as (and (not (null? extracted))
-                                                  ((sxpath '(// ^ arguments))
-                                                   (car extracted)))))
-                                (arglist->str-vector (or (and (not (null? as))
-                                                              (cdar as))
-                                                         '()))))
-                            (loop mode
-                                  args
-                                  (cons (expand-arg-macros matches
-                                                           line
-                                                           (or args (extracted-args))
-                                                           (car extracted))
-                                        collected)
-                                  spedls
-                                  (cdr comments))))
-                      (else
-                       (loop mode args (cons line collected) spedls (cdr comments)))))))))))))))
+(define schmooz-line-kind
+  (let ((starts `((verbatim   . ,(irregex "^\\s*;*\\s*@(def|(sub)*(section|heading))"))
+                  (stop       . ,(irregex "^\\s*;*@stop\\s*$"))
+                  (args       . ,(irregex "^\\s*;*@args(\\s+|$)"))
+                  (schmooz    . ,(irregex "^\\s*;*@(\\s+|$)")))))
+    (lambda (line)
+      (loop continue ((for start (in-list starts)))
+        => 'regular
+        (if (irregex-search (cdr start) line)
+            (car start)
+            (continue))))))
+
+(define (extracted-args extracted)
+  (and-let* ((as (and (not (null? extracted))
+                      ((sxpath '(// ^ arguments))
+                       (car extracted)))))
+    (arglist->str-vector (or (and (not (null? as))
+                                  (cdar as))
+                             '()))))
+
+(define (parse-args-line line)
+  (let ((space-pos (string-index line #\space)))
+    (and space-pos
+         (list->vector
+          (string-tokenize
+           (substring line (+ space-pos 1) (string-length line))
+           char-set:graphic)))))
+
+(define (schmooz comments extracted)
+  (define (generate mode args collected)
+    (let ((texi-fragment (string-join (reverse collected) "\n")))
+      (guard
+          (c ((parser-error? c)
+              (raise-extract-error
+               "failed to parse texinfo fragment: ~a: ~s~%\"~%~a~%\""
+               (condition-message c) (condition-irritants c)
+               texi-fragment)))
+        (let ((stexi (cdr (texi-fragment->stexi texi-fragment))))
+          (cond ((and (not (null? extracted)) (eq? mode 'schmooz))
+                 `(group ,(arg-extended-items extracted args)
+                         (documentation ,@stexi)))
+                ((not (null? stexi))
+                 `(documentation ,@stexi))
+                (else #f))))))
+  (loop continue ((with mode 'skip)
+                  (with args #f)
+                  (with collected '())
+                  (with spedls '())
+                  (with comments comments)
+                  (until (and (null? comments) (null? collected))))
+    => (remv #f spedls)
+    (if (null? comments)
+        (continue (=> collected '())
+                  (=> spedls (cons (generate mode args collected) spedls)))
+        (let* ((line (car comments))
+               (line-kind (schmooz-line-kind line)))
+          #;
+          (fmt #t "mode: " mode " line kind: " line-kind " collected: " collected " comments: " comments "\n")
+          (match (cons mode line-kind)
+            ((_ . 'stop)
+             (continue (=> mode 'skip)
+                       (=> collected '())
+                       (=> spedls (cons (generate mode args collected) spedls))
+                       (=> comments (cdr comments))))
+            (('skip . 'regular)
+             (continue (=> mode 'skip)
+                       (=> args #f)
+                       (=> comments (cdr comments))))
+            (('skip . line-kind)
+             (continue (=> mode line-kind)
+                       (=> args #f)))
+            (('verbatim . 'schmooz)
+             (continue (=> mode 'schmooz)
+                       (=> collected '())
+                       (=> spedls (cons (generate mode args collected) spedls))))
+            (('verbatim . line-kind)
+             (continue (=> args #f)
+                       (=> collected (cons (string-trim line #\;) collected))
+                       (=> comments (cdr comments))))
+            (('args . line-kind)
+             (continue (=> mode 'schmooz)
+                       (=> args (parse-args-line line))
+                       (=> comments (cdr comments))))
+            (('schmooz . line-kind)
+             (let ((line (schmooz-trim line)))
+               (cond
+                 ((match* "@[0-9]+" line)
+                  => (lambda (matches)
+                       (continue
+                        (=> collected
+                            (cons (expand-arg-macros
+                                   matches
+                                   line
+                                   (or args (extracted-args extracted))
+                                   (car extracted))
+                                  collected))
+                        (=> comments (cdr comments)))))
+                 (else
+                  (continue (=> collected (cons line collected))
+                            (=> comments (cdr comments))))))))))))
 
 (define (extract-define form)
   (match (cdr (strip-non-forms form))
@@ -320,4 +327,6 @@
           (else         (loop (cons `(rest-list ,lst) result) '())))))
 
 
-;; arch-tag: 6d052554-c085-4fd8-96c3-708f8bc3bb19
+;; Local Variables:
+;; scheme-indent-styles: (foof-loop (match 1))
+;; End:
