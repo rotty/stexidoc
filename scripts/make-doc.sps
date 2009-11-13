@@ -16,7 +16,7 @@
         (dorodango inventory)
         (dorodango package)
         (dorodango bundle)
-        (stexidoc read-r5rs)
+        (stexidoc reader)
         (stexidoc util)
         (stexidoc extract)
         (stexidoc html))

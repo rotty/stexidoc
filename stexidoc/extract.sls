@@ -58,7 +58,7 @@
           (xitomatl sxml-tools sxpath)
           (texinfo)
           (stexidoc util)
-          (stexidoc read-r5rs))
+          (stexidoc reader))
 
   (include-file ((stexidoc private) extract))
 

@@ -20,7 +20,7 @@
           (xitomatl ssax tree-trans)
           (stexidoc util)
           (stexidoc extract)
-          (stexidoc read-r5rs))
+          (stexidoc reader))
 
   (include-file ((stexidoc private) system))
 

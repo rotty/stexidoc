@@ -40,7 +40,7 @@
           (texinfo html)
           (stexidoc util)
           (stexidoc texi)
-          (stexidoc read-r5rs)
+          (stexidoc reader)
           (stexidoc extract))
 
 
