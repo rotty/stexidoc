@@ -23,21 +23,19 @@
 #!r6rs
 
 (library (stexidoc util)
-  (export format-exception maybe-symbol->string merge-fragments)
-  (import (except (rnrs base)
-                  error
-                  string-copy string->list string-for-each
-                  map for-each)
-          (rnrs control)
-          (rnrs exceptions)
-          (rnrs conditions)
-          (rnrs io simple)
-          (srfi :1 lists)
+  (export format-exception
+          maybe-symbol->string
+          merge-fragments
+          library-name->path
+          library-name->pathname)
+  (import (rnrs)
+          (srfi :14 char-sets)
           (spells pathname)
           (spells condition)
-          (spells tracing)
+          (spells foof-loop)
+          (spells nested-foof-loop)
           (spells include)
-          (xitomatl ssax tree-trans))
+          (ocelotl net pct-coding))
 
   (include-file ((stexidoc private) util))
   

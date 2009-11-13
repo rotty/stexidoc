@@ -34,4 +34,24 @@
     (assertion-violation 'merge-fragments "invalid arguments" a b))
   (cons '*fragment* (append (cdr a) (cdr b))))
 
-;; arch-tag: 093180ca-4e45-4f17-8ecc-58b10e4d16b9
+(define (library-name->path/reverse name)
+  (collect-list-reverse (for part (in-list name))
+    (pct-encode (string->utf8 (symbol->string part))
+                filename-safe-char-set)))
+
+(define (library-name->path name)
+  (reverse (library-name->path/reverse name)))
+
+(define (library-name->pathname name base)
+  (let ((path (library-name->path/reverse name)))
+    (pathname-join base (make-pathname #f (reverse (cdr path)) (car path)))))
+
+(define filename-safe-char-set
+  (char-set-difference char-set:printing
+                       (string->char-set ">:\"/\\|?*%*")))
+
+
+;; Local Variables:
+;; scheme-indent-styles: (foof-loop)
+;; End:
+

@@ -23,9 +23,9 @@
 #!r6rs
 
 (library (stexidoc html)
-  (export stdl->shtml libraries-stdl->shtml libraries-stdl->shtml-toc)
+  (export library-page libraries-toc-page)
   (import (rnrs)
-          (only (srfi :1) concatenate)
+          (only (srfi :1) concatenate drop make-list)
           (only (srfi :13) string-suffix? string-join)
           (spells alist)
           (spells foof-loop)
@@ -38,20 +38,40 @@
           (xitomatl ssax extras)
           (ocelotl net uri)
           (texinfo html)
+          (stexidoc util)
           (stexidoc texi)
           (stexidoc read-r5rs)
           (stexidoc extract))
 
 
-(define (libraries-stdl->shtml-toc stdl)
+(define (library-page name library documentation)
+  (wrap-html (fmt #f name)
+             `(span "(" ,@(back-href-list name) ")")
+             (make-back-filename (length name) #f)
+             (list (stdl->shtml `(group (items ,library)
+                                        ,documentation)))))
+
+(define (libraries-toc-page stdl path)
+  (wrap-html (fmt #f (fmt-join dsp path " ") toc-heading-suffix)
+             `(span ,@(back-href-list path) ,toc-heading-suffix)
+             (make-back-filename (length path) #f)
+             (list
+              (libraries-stdl->shtml-toc stdl (length path)))))
+
+(define toc-heading-suffix " - Table of contents")
+
+
+(define (libraries-stdl->shtml-toc stdl n-strip)
   (pre-post-order
    stdl
    `((*fragment*
-      ((group ,library-group-toc-rules . ,(lambda (tag . shtml) shtml)))
+      ((group ,(make-library-group-toc-rules n-strip)
+              . ,(lambda (tag . shtml) shtml)))
       . ,(lambda (tag . shtmls)
            `(dl (^ (id "toc"))
                 ,@(concatenate shtmls)))))))
 
+#;
 (define (libraries-stdl->shtml stdl)
   (pre-post-order
    stdl
@@ -69,25 +89,67 @@
 (define (stdl->shtml stdl)
   (stexi->shtml (spedl->stexi stdl)))
 
-(define library-group-toc-rules
+(define (make-library-group-toc-rules n-strip)
   `((items
      ((structure *PREORDER*
                  . ,(lambda (tag attlist . subs)
-                      (library-name->href (attlist-ref attlist 'name)))))
+                      (library-name->href (attlist-ref attlist 'name) n-strip))))
      . ,(lambda (tag . library-names)
           `(dt ,@(list-intersperse library-names " "))))
     (documentation *PREORDER*
                    . ,(lambda (tag . stexi)
                         `(dd ,@(stexi->shtml stexi))))))
 
-(define (library-name->href name)
-  `(a (^ (href ,(uri->string (make-uri #f #f '() #f (library-name->id name)))))
-      ,(fmt #f name)))
-
-(define (library-name->id name)
-  (string-append "lib:" (string-join (map symbol->string name) "_")))
+(define (library-name->href name n-strip)
+  (let ((uri-path (append (library-name->path (drop name n-strip))
+                          (list "index.html"))))
+    `(a (^ (href ,(uri->string (make-uri #f #f uri-path #f #f))))
+        ,(fmt #f name))))
 
 
+;; HTML template
+
+(define (wrap-html title heading root-path body)
+  `(html (^ (xmlns "http://www.w3.org/1999/xhtml"))
+    (head
+     (title ,title)
+     (meta (^ (name "Generator")
+              (content "STexiDoc, a Scheme documentation extractor")))
+     (style (^ (type "text/css") (media "screen"))
+       "@import url("
+       ,(x->namestring (pathname-with-file root-path "screen.css"))
+       ");"))
+    (body
+     (div (^ (id "content"))
+          (h1 (^ (id "heading")) ,heading)
+          (div (^ (id "inner"))
+               ,@body)
+          (div (^ (id "footer"))
+               "powered by "
+               (a (^ (href ,stexidoc-homepage-url)) "stexidoc"))))))
+
+(define stexidoc-homepage-url "http://github.com/rotty/stexidoc")
+
+(define (back-href-list path)
+  (let ((n-parts (length path)))
+    (loop ((for i (down-from n-parts (to 0)))
+           (for part (in-list path))
+           (for result (appending
+                        (if (= i 0)
+                            (list part)
+                            `((a (^ (href ,(make-back-filename i "index.html")))
+                                 ,part)
+                              " ")))))
+      => result)))
+
+
+(define (make-back-filename n file)
+  (string-append
+   (if (= n 0)
+       "."
+       (string-join (make-list n "..") "/" 'suffix))
+   (or file "")))
+
 (define (attlist-ref attlist key)
   (car (assq-ref (cdr attlist) key)))
 

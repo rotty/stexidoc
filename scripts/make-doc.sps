@@ -1,9 +1,7 @@
 (import (except (rnrs) delete-file file-exists?)
-        (only (srfi :1) make-list)
         (only (srfi :13)
               string-join
               string-suffix?)
-        (srfi :14 char-sets)
         (spells condition)
         (spells filesys)
         (spells pathname)
@@ -14,7 +12,8 @@
         (spells alist)
         (xitomatl sxml-tools sxpath)
         (xitomatl ssax extras)
-        (ocelotl net pct-coding)
+        (ocelotl wt-tree)
+        (dorodango inventory)
         (dorodango package)
         (dorodango bundle)
         (stexidoc read-r5rs)
@@ -74,84 +73,83 @@
   `((library . ,r6rs-library-extractor)))
 
 
-;; HTML template
+(define-record-type library-node
+  (fields stdl documentation))
 
-(define (wrap-html title heading root-path body)
-  `(html (^ (xmlns "http://www.w3.org/1999/xhtml"))
-    (head
-     (title ,title)
-     (meta (^ (name "Generator")
-              (content "STexiDoc, a Scheme documentation extractor")))
-     (style (^ (type "text/css") (media "screen"))
-       "@import url("
-       ,(x->namestring (pathname-with-file root-path "screen.css"))
-       ");"))
-    (body
-     (div (^ (id "content"))
-          (h1 (^ (id "heading")) ,heading)
-          (div (^ (id "inner"))
-               ,@body)
-          (div (^ (id "footer"))
-               "powered by "
-               (a (^ (href ,stexidoc-homepage-url)) "stexidoc"))))))
+(define %library-tag (list 'library-tag))
 
-(define (library-name->pathname name base)
-  (let ((directory-parts (collect-list-reverse (for part (in-list name))
-                           (pct-encode (string->utf8 (symbol->string part))
-                                       filename-safe-char-set))))
-    (pathname-join base (make-pathname #f
-                                       (reverse (cdr directory-parts))
-                                       (car directory-parts)))))
+(define (libraries-stdl->inventory stdl)
+  (iterate-values ((inventory (make-inventory 'libraries #f)))
+      (for library-group (in-list ((sxpath '(group)) stdl)))
+      (let documentation (car ((sxpath '(documentation)) library-group)))
+      (for library (in-list ((sxpath '(items structure)) library-group)))
+      (let ((name (cadar ((sxpath '(^ name)) library))))
+        (inventory-leave-n
+         (inventory-update inventory
+                           (append (map symbol->string name)
+                                   (list %library-tag))
+                           #f           ;container?
+                           (make-library-node library documentation))
+         (+ (length name) 1)))))
 
-(define filename-safe-char-set
-  (char-set-difference char-set:printing
-                       (string->char-set ">:\"/\\|?*%*")))
-
-(define stexidoc-homepage-url "http://github.com/rotty/stexidoc")
-
-(define (make-back-filename n file)
-  (string-append
-   (if (= n 0)
-       "."
-       (string-join (make-list n "..") "/" 'suffix))
-   (or file "")))
-
-(define (library-shtml name library documentation)
-  (wrap-html (fmt #f name)
-             (library-name->heading name)
-             (make-back-filename (length name) #f)
-             (list (stdl->shtml `(group (items ,library)
-                                        ,documentation)))))
-
-(define (library-name->heading name)
-  (let ((n-parts (length name)))
-    (loop ((for i (down-from n-parts (to 0)))
-           (for part (in-list name))
-           (for result
-                (appending
-                 (if (= i 0)
-                     (list part)
-                     `((a (^ (href ,(make-back-filename i "index.html")))
-                          ,part)
-                       " ")))))
-      => `(span "(" ,@result ")"))))
+(define (inventory->libraries-stdl inventory)
+  (loop continue ((with cursor
+                        (inventory-cursor inventory)
+                        (inventory-cursor-next cursor))
+                  (while cursor)
+                  (with result '(*fragment*)))
+    => result
+    (let ((stdl (library-node-stdl
+                 (inventory-cursor-data cursor)))
+          (documentation (library-node-documentation
+                          (inventory-cursor-data cursor))))
+      (continue (=> result
+                    (merge-fragments `(*fragment* (group (items ,stdl)
+                                                         ,documentation))
+                                     result))))))
 
 (define (generate-documentation bundle-filename output-directory)
+  (define (generate-toc inventory path)
+    (let ((html-pathname (pathname-join
+                          output-directory
+                          (make-pathname #f (reverse path) "index.html"))))
+      (fmt #t "Creating TOC for " path " in " (->namestring html-pathname) "\n")
+      (create-directory* (pathname-container html-pathname))
+      (call-with-output-file/atomic html-pathname
+        (lambda (port)
+          (sxml->xml (libraries-toc-page (inventory->libraries-stdl inventory)
+                                         path)
+                     port)))))
   (let ((bundle (open-input-bundle bundle-filename)))
     (iterate! (for package (in-list (bundle-packages bundle)))
-        (let stdl (bundle-package->stdl bundle package))
-        (for library-group (in-list ((sxpath '(group)) stdl)))
-        (let documentation (car ((sxpath '(documentation)) library-group)))
-        (for library (in-list ((sxpath '(items structure)) library-group)))
-      (let* ((name (cadar ((sxpath '(^ name)) library)))
-             (directory (pathname-as-directory
-                         (library-name->pathname name output-directory)))
-             (html-pathname (pathname-with-file directory "index.html")))
-        (fmt #t "Creating HTML documentation for " name "\n")
-        (create-directory* (pathname-container html-pathname))
-        (call-with-output-file/atomic html-pathname
-          (lambda (port)
-            (sxml->xml (library-shtml name library documentation) port)))))))
+        (let inventory (libraries-stdl->inventory
+                        (bundle-package->stdl bundle package)))
+      (begin
+        (let recur ((inventory inventory) (path '()))
+          (loop ((for cursor (in-inventory inventory)))
+            (when (and (inventory-container? cursor)
+                       (not (eq? (inventory-name (inventory-enter cursor))
+                                 %library-tag)))
+              (let ((path (cons (inventory-name cursor) path)))
+                (generate-toc cursor (reverse path))
+                (recur cursor path)))))
+        (iterate! ((with cursor
+                         (inventory-cursor inventory)
+                         (inventory-cursor-next cursor))
+                   (while cursor))
+          (let* ((name (map string->symbol (reverse (inventory-cursor-path cursor))))
+                 (node (inventory-cursor-data cursor))
+                 (directory (pathname-as-directory
+                             (library-name->pathname name output-directory)))
+                 (html-pathname (pathname-with-file directory "index.html")))
+            (fmt #t "Creating HTML documentation for " name "\n")
+            (create-directory* (pathname-container html-pathname))
+            (call-with-output-file/atomic html-pathname
+              (lambda (port)
+                (sxml->xml (library-page name
+                                         (library-node-stdl node)
+                                         (library-node-documentation node))
+                           port)))))))))
 
 (define (main argv)
   (match argv
