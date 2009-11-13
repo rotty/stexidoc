@@ -84,6 +84,21 @@
                  ";@stop"
                  "(define (func2) #f)")))
 
+(define-test-suite (extract-tests.extractor-spec extract-tests)
+  "Extractor specifications")
+
+(define-test-case extract-tests.extractor-spec basics ()
+  (test-equal '(*fragment*
+                (group
+                 (items (procedure (^ (name foo) (arguments x y z)))
+                        (procedure (^ (name bar) (arguments x y z))))
+                 (documentation (para "Frobbers"))))
+    (usual-spedl
+     ";@extractors (import (stexidoc test extractors)) test-extractors"
+     ";@ Frobbers"
+     "(define foo (make-frobber))"
+     "(define bar (make-frobber))")))
+
 (run-test-suite extract-tests)
 
 ;; Local Variables:

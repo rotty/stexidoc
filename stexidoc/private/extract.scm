@@ -4,12 +4,16 @@
   `((*TEXT* . ,(lambda (tag text) text))
     (*DEFAULT* . ,(lambda args args))))
 
+(define extractors-irx
+  (irregex '(: bos (* space) (* ";") "@extractors" (+ space) ($ (* any)))))
+
 (define (scheme->spedl extractors port-or-code)
   (define (generate comments extracted)
     (schmooz (reverse comments) (reverse extracted)))
   (loop continue ((with comments '())
                   (with extracted '())
                   (with spedls '())
+                  (with extractors extractors)
                   (with code
                         (if (input-port? port-or-code)
                             (read-scheme-code port-or-code)
@@ -21,39 +25,75 @@
            (case (non-form-type (car code))
              ((comment)
               (let ((comment (non-form-data (car code))))
-                (cond
-                  ((not (null? extracted))
-                   (continue (=> comments '())
-                             (=> extracted '())
-                             (=> spedls (append (generate comments extracted)
-                                                spedls))
-                             (=> code code)))
+                (define (eval-extractors+continue str)
+                  (with-extract-error-handler comment
+                      (lambda (c)
+                        (continue (=> comments '())
+                                  (=> extracted '())))
+                    (lambda ()
+                      (continue (=> extractors (eval-extractors str))))))
+                (cond ((irregex-search extractors-irx comment)
+                       => (lambda (match)
+                            (eval-extractors+continue
+                             (irregex-match-substring match 1))))
+                      ((not (null? extracted))
+                       (continue
+                        (=> comments '())
+                        (=> extracted '())
+                        (=> spedls (append (generate comments extracted)
+                                           spedls))
+                        (=> code code)))
                   (else
                    (continue (=> comments (cons comment comments)))))))
-             ((directive)
-              (continue))
              (else
-              (assertion-violation 'scheme->spedl
-                                   "unexpected READ-SCHEME-CODE output"
-                                   (car code)))))
+              (continue))))
           (else
            (let ((form (car code)))
-             (guard (c ((extract-error? c)
-                        (display-condition
-                         (condition
-                          (make-extract-error)
-                          (make-message-condition
-                           (format #f "while processing ~s" form))
-                          (make-stacked-condition c))
-                         (current-error-port))
-                        (continue (=> comments '())
-                                  (=> extracted '()))))
-               (let ((result (cond
-                               ((and (pair? form)
-                                     (assq (car form) extractors)) =>
-                                     (lambda (x) ((cdr x) form)))
-                               (else '()))))
-                 (continue (=> extracted (append result extracted))))))))))
+             (with-extract-error-handler form
+                 (lambda (c)
+                   (continue (=> comments '())
+                             (=> extracted '())))
+               (lambda ()
+                 (cond ((and (pair? form)
+                             (assq-ref extractors (car form)))
+                        => (lambda (extractor)
+                             (continue
+                              (=> extracted
+                                  (append (extractor form) extracted)))))
+                       (else
+                        (continue))))))))))
+
+(define (with-extract-error-handler form handler thunk)
+  (guard (c ((extract-error? c)
+             ;;++ use raise-continuable?
+             (display-condition
+              (condition
+               (make-extract-error)
+               (make-message-condition (format #f "while processing ~s" form))
+               (make-stacked-condition c))
+              (current-error-port))
+             (handler c)))
+    (thunk)))
+
+(define (eval-extractors str)
+  (let* ((port (open-string-input-port str))
+         (imports (read port))
+         (expression (read port)))
+    (match imports
+      (('import libraries ___)
+       (guard (c (#t
+                  (raise
+                    (condition
+                     (make-extract-error)
+                     (make-message-condition "error evaluating extractors")
+                     (make-irritants-condition (list imports expression))
+                     (make-stacked-condition c)))))
+         (eval expression (apply environment libraries))))
+      (_
+       (raise (condition
+               (make-extract-error)
+               (make-message-condition "invalid import specification")
+               (make-irritants-condition (list imports))))))))
 
 (define (file-processing-error file c)
   (condition
@@ -272,6 +312,29 @@
                  (else
                   (continue (=> collected (cons line collected))
                             (=> comments (cdr comments))))))))))))
+
+(define (extend-extractors extractors extensions)
+  (loop continue ((for extension (in-list extensions))
+                  (with originals extractors)
+                  (with combined '()))
+    => (append combined originals)
+    (match extension
+      ((name . (? procedure? extractor))
+       (cond ((assq name originals)
+              => (lambda (original)
+                   (continue
+                    (=> combined
+                        (cons (cons name (combine-extractors extractor
+                                                             (cdr original)))
+                              combined))
+                    (=> originals (remq original originals)))))
+             (else
+              (continue (=> combined (cons extension originals)))))))))
+
+(define (combine-extractors first second)
+  (lambda (form)
+    (cond ((first form) => values)
+          (else        (second form)))))
 
 (define (extract-define form)
   (match (cdr (strip-non-forms form))

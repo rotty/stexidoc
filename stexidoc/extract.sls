@@ -27,8 +27,10 @@
           files->spedl
           raise-extract-error
           usual-spedl-extractors
+          extend-extractors
           universal-spedl-rules)
   (import (rnrs)
+          (rnrs eval)
           (srfi :2 and-let*)
           (spells misc)
           (spells opt-args)
