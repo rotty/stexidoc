@@ -2,24 +2,42 @@
   (open-string-input-port (string-join lines (string #\newline))))
 
 (define (comment text)
-  (make-non-form `(comment ,text)))
+  (make-non-form 'comment text))
+
+(define (non-form=? x y)
+  (and (eq? (non-form-type x)
+            (non-form-type y))
+       (equal? (non-form-data x)
+               (non-form-data y))))
+
+(define (form=? x y)
+  (cond ((non-form? x)
+         (and (non-form? y)
+              (non-form=? x y)))
+        ((non-form? y)
+         #f)
+        ((and (pair? x) (pair? y))
+         (and (form=? (car x) (car y))
+              (form=? (cdr x) (cdr y))))
+        (else
+         (equal? x y))))
 
 (define-test-suite read-tests
   "Reading Scheme code")
 
 (define-test-case read-tests single-form ()
-  (test-equal '((foo 1 2 'bar))
+  (test-compare form=? '((foo 1 2 'bar))
     (read-scheme-code (line-port "(foo 1 2 'bar)"))))
 
 (define-test-case read-tests form-and-comment ()
-  (test-equal `((foo 42)
+  (test-compare form=? `((foo 42)
                 ,(comment "; Hi there!"))
    (read-scheme-code (line-port "(foo 42)"
                                 ";; Hi there!"))))
 
 (define-test-case read-tests nested-comment ()
-  (test-equal `((library (foo)
-                  ,(comment "; FIXME: implement")))
+  (test-compare form=? `((library (foo)
+                         ,(comment "; FIXME: implement")))
     (read-scheme-code (line-port "(library (foo)"
                                  "  ;; FIXME: implement"
                                  ")"))))

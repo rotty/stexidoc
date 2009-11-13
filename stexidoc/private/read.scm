@@ -18,6 +18,7 @@
 ;; - Returns non-forms (e.g. comments) read, as `non-form' objects
 ;; - Accepts some additional syntax beyond R5RS, such as a
 ;;   subset of the R6RS additions.
+;; - Is case-sensitive
 
 ;; Nonstandard things used:
 ;;  Ascii stuff: char->ascii, ascii->char, ascii-whitespaces, ascii-limit
@@ -44,8 +45,9 @@
 (define (reverse-list->string l n)
   (list->string (reverse l)))
 
-(define sml-warn-handler (make-parameter (lambda (port msg)
-                                           (format (current-error-port) "SML WARNING: ~a" msg))))
+(define sml-warn-handler
+  (make-parameter (lambda (port msg)
+                    (format (current-error-port) "SML WARNING: ~a" msg))))
 
 (define (warn msg port)
   ((sml-warn-handler) port msg))
@@ -83,10 +85,8 @@
 (define (reader-token? form)
   (and (pair? form) (eq? (car form) reader-token-marker)))
 
-(define non-form-marker (list 'non-form))
-(define (make-non-form form) (cons non-form-marker form))
-(define (non-form? form)
-  (and (pair? form) (eq? (car form) non-form-marker)))
+(define-record-type non-form
+  (fields type data))
 
 (define close-paren (make-reader-token "unexpected right parenthesis"))
 (define dot         (make-reader-token "unexpected \" . \""))
@@ -153,14 +153,14 @@
 ; Tokens
 
 (define (sub-read-token c port)
-  (let loop ((l (list (preferred-case c))) (n 1))
+  (let loop ((l (list c)) (n 1))
     (let ((c (peek-char port)))
       (cond ((or (eof-object? c)
                  (vector-ref read-terminating?-vector (char->ascii c)))
              (reverse-list->string l n))
             (else
 	     (read-char port)
-             (loop (cons (preferred-case c) l)
+             (loop (cons c l)
                    (+ n 1)))))))
 
 (define (parse-token string port)
@@ -183,24 +183,6 @@
 	"1+" "-1+"  ;Only for S&ICP support
 	"->"	    ;Only for JAR's thesis
 	))
-
-;--- This loses because the compiler won't in-line it.  Hacked by hand
-; because it is in READ's inner loop.
-;(define preferred-case
-;  (if (char=? (string-ref (symbol->string 't) 0) #\T)
-;      char-upcase
-;      char-downcase))
-
-(define p-c-v (let ((s (make-string ascii-limit #\0)))
-                (let ((p-c (if (char=? (string-ref (symbol->string 't) 0) #\T)
-                               char-upcase
-                               char-downcase)))
-                  (do ((i 0 (+ i 1)))
-                      ((>= i ascii-limit) s)
-                    (string-set! s i (p-c (ascii->char i)))))))
-
-(define (preferred-case c)
-  (string-ref p-c-v (char->ascii c)))
 
 ; Reader errors
 
@@ -332,8 +314,8 @@
   (lambda (c port)
     (let ((line (read-line port)))
       (if (eof-object? line)
-          (make-non-form '(comment))
-          (make-non-form `(comment ,line))))))
+          (make-non-form 'comment "")
+          (make-non-form 'comment line)))))
 
 (set-standard-read-macro! #\# #f
   (lambda (c port)
@@ -386,7 +368,7 @@
   (lambda (c port)
     (read-char port)
     (let ((token (sub-read-token (read-char port) port)))
-      (make-non-form `(directive ,(string->symbol token))))))
+      (make-non-form 'directive (string->symbol token)))))
 
 (define-sharp-macro #\'
   (lambda (c port)
@@ -416,8 +398,7 @@
                (let ((c2 (read-char port)))
                  (assert-not-eof c2)
                  (if (char=? c2 #\#)
-                     (make-non-form
-                      `(comment ,(list->string (reverse comment))))
+                     (make-non-form 'comment (list->string (reverse comment)))
                      (loop (cons c2 (cons c comment))))))
               (else
                (loop (cons c comment))))))))
@@ -425,7 +406,7 @@
 (define-sharp-macro #\;
   (lambda (c port)
     (read-char port)
-    (make-non-form `(comment (sub-read-carefully port)))))
+    (make-non-form 'comment (sub-read-carefully port))))
 
 (let ((number-sharp-macro
        (lambda (c port)

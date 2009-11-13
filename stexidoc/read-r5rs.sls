@@ -24,28 +24,20 @@
 
 (library (stexidoc read-r5rs)
   (export read-scheme-code
-          non-form?
           make-non-form
+          non-form?
+          non-form-type
+          non-form-data
           strip-non-forms)
-  (import (except (rnrs base) error)
-          (rnrs control)
-          (rnrs unicode)
-          (rnrs lists)
-          (rnrs mutable-strings)
-          (rnrs io simple)
-          (rnrs exceptions)
-          (rnrs conditions)
+  (import (rnrs)
+          (srfi :39 parameters)
           (spells misc)
           (spells opt-args)
-          (srfi :39 parameters)
           (spells delimited-readers)
           (spells condition)
-          (only (spells error) make-error-signaller)
           (spells ascii)
           (spells format)
           (spells include))
-
-  (define error (make-error-signaller "stexidoc R5RS reader"))
 
   (define (reverse-cons x lst)
     (let loop ((result x) (lst lst))
