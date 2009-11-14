@@ -23,9 +23,8 @@
                     ,(lambda (tag attlist . subs)
                        (let ((name (car (assq-ref (cdr attlist) 'name)))
                              (bindings ((sxpath '(items *)) (cons tag subs)))
-                             (docs (or (assq-ref subs 'documentation) '()))
                              (interface (assq-ref subs 'interface)))
-                         `(structure* ,docs ,@(filter-items interface bindings)))))
+                         `(structure* ,(filter-items interface bindings)))))
          (structure* . ,process-structure*)
          (procedure . ,(make-def 'defun 'defunx))
          (arguments *PREORDER* . ,arguments->stexi)
@@ -48,13 +47,13 @@
         (else
          '(*fragment*))))
 
-(define (process-structure* tag docs . items)
+(define (process-structure* tag items)
   (lambda (to-wrap)
-    `((section "Overview")
-      ,@to-wrap
-      (section "Usage")
-      ,@docs
-      ,@(append-map cdr items))))
+    (append to-wrap (append-map (lambda (item)
+                                  (if (eq? '*fragment* (car item))
+                                      (cdr item)
+                                      item))
+                                items))))
 
 (define (arguments->stexi tag . args)
   `(arguments
