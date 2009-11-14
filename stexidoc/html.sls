@@ -23,7 +23,9 @@
 #!r6rs
 
 (library (stexidoc html)
-  (export library-page libraries-toc-page)
+  (export stdl->shtml
+          library-page
+          libraries-toc-page)
   (import (rnrs)
           (only (srfi :1) concatenate drop make-list)
           (only (srfi :13) string-suffix? string-join)
@@ -33,6 +35,7 @@
           (spells fmt)
           (spells match)
           (spells condition)
+          (spells tracing)
           (xitomatl ssax tree-trans)
           (xitomatl sxml-tools sxpath)
           (xitomatl ssax extras)

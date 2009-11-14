@@ -1,3 +1,9 @@
+(import (rnrs)
+        (only (srfi :13) string-join)
+        (spells testing)
+        (stexidoc texi)
+        (stexidoc extract))
+
 (define (line-port . lines)
   (open-string-input-port (string-join lines (string #\newline))))
 
@@ -17,22 +23,21 @@
            "(define bar 2)")))
 
 (define-test-case texi-tests structure ()
-  (test-equal '(*fragment* (section "Overview")
-                           (para "Hello")
-                           (section "Usage")
+  (test-equal '(*fragment* (para "Hello")
+                           (para "Blah, blah...")
                            (defun (% (name "bar") (arguments "x"))
                                   (para "Bar")))
-    (spedl->stexi '(*fragment* (group (items
-                                       (structure (^ (name foo))
-                                                  (interface (export bar))
-                                                  (items
-                                                   (group
-                                                    (items
-                                                     (procedure (^ (name bar)
-                                                                   (arguments x))))
-                                                    (documentation (para "Bar"))))))
-                                      (documentation (para "Hello")))))))
-
+    (spedl->stexi '(group (items
+                           (structure (^ (name foo))
+                                      (interface (export bar))
+                                      (items
+                                       (documentation (para "Blah, blah..."))
+                                       (group
+                                        (items
+                                         (procedure (^ (name bar)
+                                                       (arguments x))))
+                                        (documentation (para "Bar"))))))
+                          (documentation (para "Hello"))))))
 
 (run-test-suite texi-tests)
 

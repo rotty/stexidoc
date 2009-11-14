@@ -27,12 +27,18 @@
                             (section "Foo Bar")
                             (para "Text, and more text")
                             (subsection "Baz")
-                            (para "bazzy text")))
+                            (para "bazzy text")
+                            (anchor (% (name "defvar-baz")))
+                            (defvar (% (name "baz"))
+                                    (para "This is baz"))))
     (scheme->spedl '() (line-port ";;@section Foo Bar"
                                   ";;   Text, and more text"
                                   "(define foo 1)"
                                   ";;@subsection Baz"
                                   ";; bazzy text"
+                                  ";;@defvar baz"
+                                  ";; This is baz"
+                                  ";;@end defvar"
                                   "(define baz 'qux)"))))
 
 (define-test-suite (extract-tests.usual extract-tests)
@@ -82,6 +88,20 @@
     (usual-spedl ";@ Func1"
                  "(define (func1) #t)"
                  ";@stop"
+                 "(define (func2) #f)")))
+
+(define-test-case extract-tests.comment-mix override ()
+  (test-equal '(*fragment* (group (items (procedure (^ (name func1) (arguments))))
+                                  (documentation (para "Func1")))
+                           (documentation
+                            (anchor (% (name "defun-func2")))
+                            (defun (% (name "func2") (arguments))
+                                   (para "This is func2"))))
+    (usual-spedl ";@ Func1"
+                 "(define (func1) #t)"
+                 ";@defun func2"
+                 "; This is func2"
+                 ";@end defun"
                  "(define (func2) #f)")))
 
 (define-test-suite (extract-tests.extractor-spec extract-tests)
