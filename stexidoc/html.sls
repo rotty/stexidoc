@@ -153,15 +153,6 @@
        (string-join (make-list n "..") "/" 'suffix))
    (or file "")))
 
-(define (attlist-ref attlist key)
-  (car (assq-ref (cdr attlist) key)))
-
-(define (list-intersperse src-l elem)
-  (if (null? src-l) src-l
-    (let loop ((l (cdr src-l)) (dest (cons (car src-l) '())))
-      (if (null? l) (reverse dest)
-        (loop (cdr l) (cons (car l) (cons elem dest)))))))
-
 )
 
 ;; Local Variables:

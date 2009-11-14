@@ -1,8 +1,20 @@
+(define (attlist-ref attlist key)
+  (car (assq-ref (cdr attlist) key)))
+
+(define (list-intersperse lst elem)
+  (if (null? lst)
+      lst
+      (let loop ((l (cdr lst)) (result (cons (car lst) '())))
+        (if (null? l)
+            (reverse result)
+            (loop (cdr l) (cons (car l) (cons elem result)))))))
+
 (define (out port . args)
   (for-each (lambda (x)
               (display x port))
             args))
 
+;;++ need to reformulate this, perhaps using `dsp-condition'
 (define (format-exception e port)
   (define (format indent c)
     (when (message-condition? c)

@@ -23,13 +23,16 @@
 #!r6rs
 
 (library (stexidoc util)
-  (export format-exception
+  (export list-intersperse
+          attlist-ref
+          format-exception
           maybe-symbol->string
           merge-fragments
           library-name->path
           library-name->pathname)
   (import (rnrs)
           (srfi :14 char-sets)
+          (spells alist)
           (spells pathname)
           (spells condition)
           (spells foof-loop)
