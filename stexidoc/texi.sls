@@ -10,10 +10,12 @@
           (spells misc)
           (spells format)
           (spells match)
+          (spells fmt)
           (spells tracing)
           (spells include)
           (xitomatl ssax tree-trans)
           (xitomatl sxml-tools sxpath)
+          (stexidoc util)
           (stexidoc system))
 
   (include-file ((stexidoc private) texi))

@@ -23,12 +23,13 @@
            "(define bar 2)")))
 
 (define-test-case texi-tests structure ()
-  (test-equal '(*fragment* (para "Hello")
+  (test-equal '(*fragment* (node (% (name "(foo bar)")))
+                           (para "Hello")
                            (para "Blah, blah...")
                            (defun (% (name "bar") (arguments "x"))
                                   (para "Bar")))
     (spedl->stexi '(group (items
-                           (structure (^ (name foo))
+                           (structure (^ (name (foo bar)))
                                       (interface (export bar))
                                       (items
                                        (documentation (para "Blah, blah..."))

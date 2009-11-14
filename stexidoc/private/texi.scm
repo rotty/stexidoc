@@ -21,12 +21,14 @@
       ((items
         ((structure *MACRO* .
                     ,(lambda (tag attlist . subs)
-                       (let ((name (car (assq-ref (cdr attlist) 'name)))
-                             (bindings ((sxpath '(items *)) (cons tag subs)))
+                       (let ((bindings ((sxpath '(items *)) (cons tag subs)))
                              (interface (assq-ref subs 'interface)))
-                         `(structure* ,(filter-items interface bindings)))))
+                         `(structure* ,attlist
+                                      ,@(filter-items interface bindings)))))
          (structure* . ,process-structure*)
          (procedure . ,(make-def 'defun 'defunx))
+         (name *PREORDER* . ,(lambda (tag name)
+                               `(,tag ,(fmt #f name))))
          (arguments *PREORDER* . ,arguments->stexi)
          (variable . ,(make-def 'defvar 'defvarx))
          (syntax . ,(make-def 'defspec 'defspecx))
@@ -47,13 +49,14 @@
         (else
          '(*fragment*))))
 
-(define (process-structure* tag items)
+(define (process-structure* tag attlist . items)
   (lambda (to-wrap)
-    (append to-wrap (append-map (lambda (item)
-                                  (if (eq? '*fragment* (car item))
-                                      (cdr item)
-                                      item))
-                                items))))
+    `((node (% (name ,(fmt #f (attlist-ref attlist 'name)))))
+      ,@(append to-wrap (append-map (lambda (item)
+                                      (if (eq? '*fragment* (car item))
+                                          (cdr item)
+                                          item))
+                                    items)))))
 
 (define (arguments->stexi tag . args)
   `(arguments
