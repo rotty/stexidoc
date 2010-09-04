@@ -38,7 +38,7 @@
         (wak foof-loop nested)
         (wak fmt)
         (wak ssax tree-trans)
-        (xitomatl sxml-tools sxpath)
+        (wak sxml-tools sxpath)
         (ocelotl ssax-utils)
         (ocelotl wt-tree)
         (dorodango inventory)

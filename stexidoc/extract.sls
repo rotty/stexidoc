@@ -55,7 +55,7 @@
           (wak foof-loop)
           (wak fmt) ;debug
           (wak irregex)
-          (xitomatl sxml-tools sxpath)
+          (wak sxml-tools sxpath)
           (texinfo)
           (stexidoc util)
           (stexidoc reader))

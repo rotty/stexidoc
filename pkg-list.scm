@@ -6,7 +6,9 @@
 (package (stexidoc (0))
   (depends (srfi)
            (spells)
-           (texinfo))
+           (texinfo)
+           (wak-ssax)
+           (wak-sxml-tools))
   (libraries ("stexidoc" . sls)
              ("stexidoc" "private")))
 

@@ -17,7 +17,7 @@
           (wak foof-loop)
           (spells tracing)
           (spells include)
-          (xitomatl ssax tree-trans)
+          (wak ssax tree-trans)
           (stexidoc util)
           (stexidoc extract)
           (stexidoc reader))

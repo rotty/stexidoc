@@ -32,8 +32,8 @@
           (wak fmt)
           (spells tracing)
           (spells include)
-          (xitomatl ssax tree-trans)
-          (xitomatl sxml-tools sxpath)
+          (wak ssax tree-trans)
+          (wak sxml-tools sxpath)
           (stexidoc util))
 
   (include-file ((stexidoc private) texi))
