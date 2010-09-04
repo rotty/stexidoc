@@ -1,6 +1,6 @@
 ;;; util.sls --- utility library for stexidoc
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -24,19 +24,21 @@
 
 (library (stexidoc util)
   (export list-intersperse
+          apush
           attlist-ref
           format-exception
           maybe-symbol->string
           merge-fragments
           library-name->path
-          library-name->pathname)
+          library-name->pathname
+          interface-exported-names)
   (import (rnrs)
           (srfi :14 char-sets)
           (spells alist)
           (spells pathname)
           (spells condition)
-          (spells foof-loop)
-          (spells nested-foof-loop)
+          (wak foof-loop)
+          (wak foof-loop nested)
           (spells include)
           (ocelotl net pct-coding))
 

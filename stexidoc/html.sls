@@ -1,6 +1,6 @@
 ;;; html.sls --- HTML output for stexidoc
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -25,21 +25,30 @@
 (library (stexidoc html)
   (export stdl->shtml
           library-page
-          libraries-toc-page)
+          libraries-toc-page
+          wrap-html)
   (import (rnrs)
           (only (srfi :1) concatenate drop make-list)
-          (only (srfi :13) string-suffix? string-join)
+          (srfi :8 receive)
+          (only (srfi :13)
+                string-join
+                string-prefix?
+                string-suffix?)
+          (srfi :14 char-sets)
+          (srfi :39 parameters)
           (spells alist)
-          (spells foof-loop)
+          (wak foof-loop)
           (spells pathname)
-          (spells fmt)
+          (wak fmt)
           (spells match)
           (spells condition)
           (spells tracing)
+          (only (spells misc) or-map)
           (xitomatl ssax tree-trans)
           (xitomatl sxml-tools sxpath)
-          (xitomatl ssax extras)
+          (ocelotl ssax-utils)
           (ocelotl net uri)
+          (ocelotl net pct-coding)
           (texinfo html)
           (stexidoc util)
           (stexidoc texi)
@@ -48,11 +57,12 @@
 
 
 (define (library-page name library documentation)
-  (wrap-html (fmt #f name)
-             `(span "(" ,@(back-href-list name) ")")
-             (make-back-filename (length name) #f)
-             (list (stdl->shtml `(group (items ,library)
-                                        ,documentation)))))
+  (parameterize ((current-library-reference name))
+    (wrap-html (fmt #f name)
+               `(span "(" ,@(back-href-list name) ")")
+               (make-back-filename (length name) #f)
+               (list (stdl->shtml `(group (items ,library)
+                                          ,documentation))))))
 
 (define (libraries-toc-page stdl path)
   (wrap-html (fmt #f (fmt-join dsp path " ") toc-heading-suffix)
@@ -89,8 +99,92 @@
       . ,(lambda (tag . shtmls)
            `(div ,@(concatenate shtmls)))))))
 
+(define index-filename "index.html")
+
+(define (shtml-resolve-ref node-name manual-name)
+  (define (make-node-uri current library-reference identifier)
+    (make-uri #f
+              #f
+              (if library-reference
+                  (append (make-list (length current) "..")
+                          (map symbol->string library-reference)
+                          (list index-filename))
+                  '())
+              #f
+              (symbol->string identifier)))
+  (receive (library-reference identifier) (parse-node-name node-name)
+    (cond ((and identifier
+                (or (not library-reference)
+                    (current-library-reference)))
+           => (lambda (current)
+                (let ((node-uri (make-node-uri current
+                                               library-reference
+                                               identifier)))
+                  (uri->string
+                   (if manual-name
+                       (merge-uris node-uri (resolve-manual manual-name))
+                       node-uri)))))
+          (else
+           #f))))
+
+(define (shtml-rename-anchor anchor-name)
+  (or-map
+   (lambda (prefix)
+     (and (string-prefix? prefix anchor-name)
+          (pct-encode (string->utf8 (substring anchor-name
+                                               (string-length prefix)
+                                               (string-length anchor-name)))
+                      fragment-safe-charset)))
+   '("defvar-" "defvarx-"
+     "defun-" "defunx-"
+     "defspec-" "defspecx-")))
+
+;; This must correspond to the definition from RFC 3986. The
+;; definition is not valid for XHTML 1.1, due to the overly strictive
+;; rules for the `id' attribute, but is valid for (X)HTML 5, and
+;; accepted in modern browsers.
+(define fragment-safe-charset
+  (char-set-union char-set:letter+digit
+                  (string->char-set "-._~!$&'()*+,;=/?:@")))
+
+(define (resolve-manual manual-name)
+  (loop continue ((for resolver (in-list (stexidoc-shtml-manual-resolvers))))
+    => (error 'resolve-manual "could not resolve manual reference" manual-name)
+    (or (resolver manual-name)
+        (continue))))
+
+(define (parse-node-name node-name)
+  (let* ((port (open-string-input-port node-name))
+         (first (read port))
+         (second (read port))
+         (third (read port)))
+    (cond ((and (list-of symbol? first) (symbol? second) (eof-object? third))
+           (values first second))
+          ((and (symbol? first) (eof-object? second))
+           (values #f first))
+          (else
+           (values #f #f)))))
+
+(define (list-of predicate thing)
+  (and (pair? thing)
+       (predicate (car thing))
+       (let ((rest (cdr thing)))
+         (or (null? rest)
+             (list-of predicate rest)))))
+
+(define current-library-reference
+  (make-parameter #f))
+
+(define stexidoc-shtml-manual-resolvers
+  ;; We don't at what URLs other manuals are stored
+  (make-parameter '()))
+
 (define (stdl->shtml stdl)
-  (stexi->shtml (spedl->stexi stdl)))
+  (parameterize ((stexi-ref-resolvers (cons shtml-resolve-ref
+                                            (stexi-ref-resolvers)))
+                 (stexi-anchor-renamers (cons shtml-rename-anchor
+                                              (stexi-anchor-renamers))))
+    (stexi->shtml (spedl->stexi stdl))))
 
 (define (make-library-group-toc-rules n-strip)
   `((items
@@ -105,7 +199,7 @@
 
 (define (library-name->href name n-strip)
   (let ((uri-path (append (library-name->path (drop name n-strip))
-                          (list "index.html"))))
+                          (list index-filename))))
     `(a (^ (href ,(uri->string (make-uri #f #f uri-path #f #f))))
         ,(fmt #f name))))
 
@@ -120,11 +214,13 @@
               (content "STexiDoc, a Scheme documentation extractor")))
      (style (^ (type "text/css") (media "screen"))
        "@import url("
-       ,(x->namestring (pathname-with-file root-path "screen.css"))
+       ,(->namestring (pathname-with-file root-path "screen.css"))
        ");"))
     (body
      (div (^ (id "content"))
-          (h1 (^ (id "heading")) ,heading)
+          ,@(if heading
+                '((h1 (^ (id "heading")) ,heading))
+                '())
           (div (^ (id "inner"))
                ,@body)
           (div (^ (id "footer"))
@@ -140,7 +236,7 @@
            (for result (appending
                         (if (= i 0)
                             (list part)
-                            `((a (^ (href ,(make-back-filename i "index.html")))
+                            `((a (^ (href ,(make-back-filename i index-filename)))
                                  ,part)
                               " ")))))
       => result)))

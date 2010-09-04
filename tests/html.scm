@@ -33,6 +33,7 @@
   (test-equal (stexi->shtml '(*fragment*
                               (para "Hello")
                               (para "Blah, blah...")
+                              (anchor (% (name "defun-bar")))
                               (defun (% (name "bar") (arguments "x"))
                                      (para "Bar"))))
     (stdl->shtml '(group (items

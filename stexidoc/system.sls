@@ -1,7 +1,7 @@
 #!r6rs
 
 (library (stexidoc system)
-  (export systems->spedl interface-exported-names)
+  (export interface-exported-names)
   (import (except (rnrs) file-exists? delete-file)
           (only (srfi :1 lists)
                 append-map filter-map drop-right last)
@@ -14,7 +14,7 @@
           (spells pathname)
           (spells filesys)
           (spells misc)
-          (spells foof-loop)
+          (wak foof-loop)
           (spells tracing)
           (spells include)
           (xitomatl ssax tree-trans)

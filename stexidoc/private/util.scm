@@ -1,5 +1,35 @@
+;;; util.scm --- stexidoc utilities
+
+;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
+
+;; Author: Andreas Rottmann <a.rottmann@gmx.at>
+
+;; This program is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License
+;; as published by the Free Software Foundation; either version 3
+;; of the License, or (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;;; Code:
+
 (define (attlist-ref attlist key)
   (car (assq-ref (cdr attlist) key)))
+
+(define (apush k v vals)
+  (cond ((assq k vals)
+         => (lambda (entry)
+              (acons k (cons v (cdr entry)) (remq entry vals))))
+        (else
+         (acons k (list v) vals))))
 
 (define (list-intersperse lst elem)
   (if (null? lst)
@@ -62,6 +92,16 @@
   (char-set-difference char-set:printing
                        (string->char-set ">:\"/\\|?*%*")))
 
+(define (interface-exported-names interface)
+  (loop continue ((for elt (in-list (assq-ref interface 'export)))
+                  (with out '()))
+    => out
+    (cond ((and (pair? elt) (pair? (car elt)))
+           (continue (=> out (append (car elt) out))))
+          ((pair? elt)
+           (continue (=> out (cons (car elt) out))))
+          (else
+           (continue (=> out (cons elt out)))))))
 
 ;; Local Variables:
 ;; scheme-indent-styles: (foof-loop)

@@ -1,6 +1,6 @@
 ;;; extract.sls --- stexidoc documentation extractor
 
-;; Copyright (C) 2008, 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008, 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -52,9 +52,9 @@
           (spells string-utils)
           (spells tracing)
           (spells include)
-          (spells foof-loop)
-          (spells fmt) ;debug
-          (spells irregex)
+          (wak foof-loop)
+          (wak fmt) ;debug
+          (wak irregex)
           (xitomatl sxml-tools sxpath)
           (texinfo)
           (stexidoc util)

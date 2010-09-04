@@ -1,4 +1,26 @@
-;; -*- Mode: Scheme; scheme48-package: stexidoc.texi; -*-
+;;; texi.scm --- convert stexidoc to plain stexi
+
+;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+
+;; Author: Andreas Rottmann <a.rottmann@gmx.at>
+
+;; This program is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License
+;; as published by the Free Software Foundation; either version 3
+;; of the License, or (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;;; Code:
+#!r6rs
 
 (define universal-spedl->stexi-rules
   `((^ . ,(lambda (trigger . subs)
@@ -79,10 +101,13 @@
 
 (define (make-def type typex)
   (lambda (tag attlist . subs)
-    (lambda (to-wrap)
-      (if to-wrap
-          `((,type ,attlist ,@to-wrap))
-          `((,typex ,attlist))))))
+    (let ((name (attlist-ref attlist 'name)))
+      (lambda (to-wrap)
+        (if to-wrap
+            `((anchor (% (name ,(fmt #f type "-" name))))
+              (,type ,attlist ,@to-wrap))
+            `((anchor (% (name ,(fmt #f typex "-" name)))) ;??
+              (,typex ,attlist)))))))
 
 (define (filter-items interface items)
   (let ((names (interface-exported-names interface)))
