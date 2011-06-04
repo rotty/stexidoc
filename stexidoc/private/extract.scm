@@ -1,6 +1,6 @@
 ;;; extract.scm --- stexidoc documentation extractor
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -81,19 +81,17 @@
                         => (lambda (extractor)
                              (continue
                               (=> extracted
-                                  (append (extractor form) extracted)))))
+                                  (append-reverse (extractor form) extracted)))))
                        (else
                         (continue))))))))))
 
 (define (with-extract-error-handler form handler thunk)
   (guard (c ((extract-error? c)
-             ;;++ use raise-continuable?
-             (display-condition
-              (condition
-               (make-extract-error)
-               (make-message-condition (format #f "while processing ~s" form))
-               (make-stacked-condition c))
-              (current-error-port))
+             (raise-continuable
+               (condition
+                (make-extract-error)
+                (make-message-condition (format #f "while processing ~s" form))
+                (make-stacked-condition c)))
              (handler c)))
     (thunk)))
 
@@ -235,7 +233,7 @@
       uncommented))))
 
 (define schmooz-line-kind
-  (let ((starts `((verbatim   . ,(irregex "^\\s*;*\\s*@(def|(sub)*(section|heading))"))
+  (let ((starts `((verbatim   . ,(irregex "^\\s*;*\\s*@(def|(sub)*(section|heading)|anchor)"))
                   (stop       . ,(irregex "^\\s*;*@stop\\s*$"))
                   (args       . ,(irregex "^\\s*;*@args(\\s+|$)"))
                   (schmooz    . ,(irregex "^\\s*;*@(\\s+|$)")))))

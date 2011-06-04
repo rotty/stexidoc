@@ -329,6 +329,15 @@
 	  ((cdr probe) c port)
 	  (reading-error port "unknown # syntax" c)))))
 
+#;
+(set-standard-read-macro! #\\ #f
+  (lambda (c port)
+    c ;ignored
+    (let ((c (peek-char-port)))
+      (unless (eq? c #\x)
+        (reading-error port "expected inline hex escape after `\\'"))
+      )))
+
 (define-sharp-macro #\f
   (lambda (c port) (read-char port) #f))
 

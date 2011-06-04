@@ -1,6 +1,6 @@
 ;;; texi.sls --- convert stexidoc to plain stexi
 
-;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009-2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -20,18 +20,20 @@
 #!r6rs
 
 (library (stexidoc texi)
-  (export spedl->stexi)
-  (import (except (rnrs base)
-                  error string-copy string->list string-for-each
-                  map for-each)
+  (export stdl->stexi
+          library-identifier->node-name)
+  (import (except (rnrs base) error map for-each)
           (srfi :1 lists)
+          (only (srfi :13) string-prefix?)
           (spells alist)
           (spells misc)
           (spells format)
           (spells match)
           (wak fmt)
-          (spells tracing)
+          (spells tracing) ;debug
           (spells include)
+          (wak foof-loop)
+          (wak foof-loop nested)
           (wak ssax tree-trans)
           (wak sxml-tools sxpath)
           (stexidoc util))

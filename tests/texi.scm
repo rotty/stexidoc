@@ -1,6 +1,6 @@
 ;;; texi.scm --- tests for stexidoc to stexinfo conversion
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -23,7 +23,7 @@
 
 (import (rnrs)
         (only (srfi :13) string-join)
-        (spells testing)
+        (wak trc-testing)
         (stexidoc texi)
         (stexidoc extract))
 
@@ -31,17 +31,26 @@
   (open-string-input-port (string-join lines (string #\newline))))
 
 (define (stexi . lines)
-  (spedl->stexi (scheme->spedl usual-spedl-extractors
+  (stdl->stexi (scheme->spedl usual-spedl-extractors
                                (apply line-port lines))))
 
 (define-test-suite texi-tests
   "Texinfo parsing")
 
+(define-test-case texi-tests defun-args ()
+  (test-equal '(*fragment*
+                (anchor (% (name "foo")))
+                (defun (% (name "foo")
+                          (arguments "x" "y" "z"))
+                       (para "Some docs.")))
+    (stexi ";;@ Some docs."
+           "(define (foo x y z) #f)")))
+
 (define-test-case texi-tests defvarx ()
   (test-equal '(*fragment*
-                (anchor (% (name "defvar-foo")))
+                (anchor (% (name "foo")))
                 (defvar (% (name "foo"))
-                        (anchor (% (name "defvarx-bar")))
+                        (anchor (% (name "bar")))
                         (defvarx (% (name "bar")))
                         (para "Some docs.")))
     (stexi ";;@ Some docs."
@@ -50,12 +59,13 @@
 
 (define-test-case texi-tests structure ()
   (test-equal '(*fragment* (node (% (name "(foo bar)")))
+                           (section "(foo bar)")
                            (para "Hello")
                            (para "Blah, blah...")
-                           (anchor (% (name "defun-bar")))
+                           (anchor (% (name "(foo bar) bar")))
                            (defun (% (name "bar") (arguments "x"))
                                   (para "Bar")))
-    (spedl->stexi '(group (items
+    (stdl->stexi '(group (items
                            (structure (^ (name (foo bar)))
                                       (interface (export bar))
                                       (items

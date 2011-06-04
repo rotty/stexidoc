@@ -1,6 +1,6 @@
 ;;; util.scm --- stexidoc utilities
 
-;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009-2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -86,7 +86,11 @@
 
 (define (library-name->pathname name base)
   (let ((path (library-name->path/reverse name)))
-    (pathname-join base (make-pathname #f (reverse (cdr path)) (car path)))))
+    (merge-pathnames (make-pathname #f (reverse (cdr path)) (car path)) base)))
+
+(define (library-name->node-name name)
+  ;;++ needs escaping
+  (call-with-string-output-port (lambda (port) (display name port))))
 
 (define filename-safe-char-set
   (char-set-difference char-set:printing
@@ -102,6 +106,25 @@
            (continue (=> out (cons (car elt) out))))
           (else
            (continue (=> out (cons elt out)))))))
+
+(define* (property-ref properties key (convert values) (default #f default-present?))
+  (cond ((assq key properties)
+         => (lambda (entry) (convert (cdr entry))))
+        (default-present?
+         default)
+        (else
+         (assertion-violation 'property-ref
+                                "required property not found" key))))
+
+(define-syntax let-properties
+  (lambda (stx)
+    (syntax-case stx ()
+      ((let-properties expr ((name . args) ...) body0 body ...)
+       #'(let ((props expr))
+           (let ((name (property-ref props 'name . args))
+                 ...)
+             body0 body ...))))))
+
 
 ;; Local Variables:
 ;; scheme-indent-styles: (foof-loop)

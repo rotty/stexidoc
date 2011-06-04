@@ -1,8 +1,9 @@
+# -*-org-*-
+
 * Missing features
 
-- Cross-referencing
-
-- Specify extractors in code that defines syntactic extensions
+** DONE Cross-referencing
+** DONE Specify extractors in code that defines syntactic extensions
 
    It should be possible to specify a set of additional extractors for
    each structure that defines new syntax relevant to documentation
@@ -11,3 +12,9 @@
    generating structure FOO's documentation the union of all
    extractors defined for the structures OPEN'ed by foo.
 
+** TODO Indexing
+
+* Architecture
+
+Replace stdl with a more static data structure, essentially mirroring
+what (texinfo reflection) from Guile does.

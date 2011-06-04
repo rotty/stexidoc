@@ -1,6 +1,6 @@
 ;;; extract.scm --- tests for documentation extraction
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -23,7 +23,7 @@
 
 (import (rnrs)
         (only (srfi :13 strings) string-join)
-        (spells testing)
+        (wak trc-testing)
         (stexidoc extract))
 
 (define (line-port . lines)
@@ -114,15 +114,16 @@
                  "(define (func2) #f)")))
 
 (define-test-case extract-tests.comment-mix override ()
-  (test-equal '(*fragment* (group (items (procedure (^ (name func1) (arguments))))
+  (test-equal '(*fragment* (group (items (procedure (^ (name func1)
+                                                       (arguments))))
                                   (documentation (para "Func1")))
                            (documentation
                             (anchor (% (name "defun-func2")))
-                            (defun (% (name "func2") (arguments))
+                            (defun (% (name "func2") (arguments "x y z"))
                                    (para "This is func2"))))
     (usual-spedl ";@ Func1"
                  "(define (func1) #t)"
-                 ";@defun func2"
+                 ";@defun func2 x y z"
                  "; This is func2"
                  ";@end defun"
                  "(define (func2) #f)")))

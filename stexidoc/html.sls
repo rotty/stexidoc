@@ -1,8 +1,7 @@
 ;;; html.sls --- HTML output for stexidoc
 
-;; Copyright (C) 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
-
-;; Author: Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009-2011 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2006,2007,2009  Andy Wingo <wingo at pobox dot com>
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License
@@ -25,10 +24,11 @@
 (library (stexidoc html)
   (export stdl->shtml
           library-page
-          libraries-toc-page
+          package-toc-page
           wrap-html)
   (import (rnrs)
           (only (srfi :1) concatenate drop make-list)
+          (srfi :2 and-let*)
           (srfi :8 receive)
           (only (srfi :13)
                 string-join
@@ -43,42 +43,68 @@
           (spells match)
           (spells condition)
           (spells tracing)
-          (only (spells misc) or-map)
+          (only (spells misc) and=> or-map)
           (wak ssax tree-trans)
           (wak sxml-tools sxpath)
+          (wak texinfo html)
           (ocelotl ssax-utils)
           (ocelotl net uri)
           (ocelotl net pct-coding)
-          (texinfo html)
           (stexidoc util)
           (stexidoc texi)
           (stexidoc reader)
-          (stexidoc extract))
+          (stexidoc extract)
+          (stexidoc renderer texinfo))
 
 
-(define (library-page name library documentation)
+(define (library-page package-name name stdl documentation)
   (parameterize ((current-library-reference name))
     (wrap-html (fmt #f name)
-               `(span "(" ,@(back-href-list name) ")")
+               #f
+               package-name
                (make-back-filename (length name) #f)
-               (list (stdl->shtml `(group (items ,library)
+               (list (stdl->shtml `(group (items ,stdl)
                                           ,documentation))))))
 
-(define (libraries-toc-page stdl path)
-  (wrap-html (fmt #f (fmt-join dsp path " ") toc-heading-suffix)
-             `(span ,@(back-href-list path) ,toc-heading-suffix)
-             (make-back-filename (length path) #f)
-             (list
-              (libraries-stdl->shtml-toc stdl (length path)))))
+(define (package-toc-page properties)
+  (let ((title (property-ref properties 'name car)))
+    (wrap-html title
+               #f
+               title
+               (make-back-filename 0 #f)
+               (list
+                (stexi->shtml (package-toc-stexi properties))))))
 
-(define toc-heading-suffix " - Table of contents")
+(define (package-toc-stexi properties)
+  `(texinfo
+    (% (title "unused"))
+    ,@(cdr (package-stexi-standard-copying properties))
+    ,@(libraries-toc-stexi (property-ref properties 'libraries))))
+
+(define (libraries-toc-stexi libraries)
+  (define (make-entry lib-name description)
+    `(entry (% (heading
+                (uref (% (url ,(lib-name->ustr lib-name))
+                         (title ,(lib-name->str lib-name))))))
+            ,@description))
+  (transform-library-listing libraries
+                             (lambda (text)
+                               `(subheading ,text))
+                             (lambda (content)
+                               `(table (% (formatter (bold))) ,@content))
+                             make-entry))
+
+(define (lib-name->str lib-name)
+  (fmt #f (dsp lib-name)))
+(define (lib-name->ustr lib-name)
+  (->namestring (library-name->pathname lib-name '(()))))
 
 
-(define (libraries-stdl->shtml-toc stdl n-strip)
+(define (libraries-stdl->shtml-toc stdl)
   (pre-post-order
    stdl
    `((*fragment*
-      ((group ,(make-library-group-toc-rules n-strip)
+      ((group ,library-group-toc-rules
               . ,(lambda (tag . shtml) shtml)))
       . ,(lambda (tag . shtmls)
            `(dl (^ (id "toc"))
@@ -99,7 +125,7 @@
       . ,(lambda (tag . shtmls)
            `(div ,@(concatenate shtmls)))))))
 
-(define index-filename "index.html")
+(define index-filename "")
 
 (define (shtml-resolve-ref node-name manual-name)
   (define (make-node-uri current library-reference identifier)
@@ -111,38 +137,37 @@
                           (list index-filename))
                   '())
               #f
-              (symbol->string identifier)))
-  (receive (library-reference identifier) (parse-node-name node-name)
-    (cond ((and identifier
-                (or (not library-reference)
-                    (current-library-reference)))
-           => (lambda (current)
-                (let ((node-uri (make-node-uri current
-                                               library-reference
-                                               identifier)))
-                  (uri->string
-                   (if manual-name
-                       (merge-uris node-uri (resolve-manual manual-name))
-                       node-uri)))))
-          (else
-           #f))))
+              (and=> identifier symbol->string)))
+  (and-let* ((current (current-library-reference)))
+    (receive (library-reference identifier) (parse-node-name node-name)
+      (cond ((and library-reference
+                  (not identifier))
+             (uri->string (make-node-uri current library-reference #f)))
+            (identifier
+             (let ((node-uri (make-node-uri current
+                                            library-reference
+                                            identifier)))
+               (uri->string
+                (if manual-name
+                    (merge-uris node-uri (resolve-manual manual-name))
+                    node-uri))))
+            (else
+             #f)))))
 
 (define (shtml-rename-anchor anchor-name)
-  (or-map
-   (lambda (prefix)
-     (and (string-prefix? prefix anchor-name)
-          (pct-encode (string->utf8 (substring anchor-name
-                                               (string-length prefix)
-                                               (string-length anchor-name)))
-                      fragment-safe-charset)))
-   '("defvar-" "defvarx-"
-     "defun-" "defunx-"
-     "defspec-" "defspecx-")))
+  (and-let* ((lib-name (current-library-reference))
+             (prefix (string-append (library-identifier->node-name lib-name #f)
+                                    " "))
+             ((string-prefix? prefix anchor-name)))
+    (pct-encode (string->utf8 (substring anchor-name
+                                         (string-length prefix)
+                                         (string-length anchor-name)))
+                fragment-safe-charset)))
 
 ;; This must correspond to the definition from RFC 3986. The
-;; definition is not valid for XHTML 1.1, due to the overly strictive
-;; rules for the `id' attribute, but is valid for (X)HTML 5, and
-;; accepted in modern browsers.
+;; definition is not valid for XHTML 1.1, due to the overly
+;; restrictive rules for the `id' attribute, but is valid for (X)HTML
+;; 5, and accepted in modern browsers.
 (define fragment-safe-charset
   (char-set-union char-set:letter+digit
                   (string->char-set "-._~!$&'()*+,;=/?:@")))
@@ -160,6 +185,8 @@
          (third (read port)))
     (cond ((and (list-of symbol? first) (symbol? second) (eof-object? third))
            (values first second))
+          ((and (list-of symbol? first) (eof-object? second))
+           (values first #f))
           ((and (symbol? first) (eof-object? second))
            (values #f first))
           (else
@@ -176,7 +203,7 @@
   (make-parameter #f))
 
 (define stexidoc-shtml-manual-resolvers
-  ;; We don't at what URLs other manuals are stored
+  ;; We don't know at what URLs other manuals are stored
   (make-parameter '()))
 
 (define (stdl->shtml stdl)
@@ -184,21 +211,21 @@
                                             (stexi-ref-resolvers)))
                  (stexi-anchor-renamers (cons shtml-rename-anchor
                                               (stexi-anchor-renamers))))
-    (stexi->shtml (spedl->stexi stdl))))
+    (stexi->shtml (stdl->stexi stdl))))
 
-(define (make-library-group-toc-rules n-strip)
+(define library-group-toc-rules
   `((items
      ((structure *PREORDER*
                  . ,(lambda (tag attlist . subs)
-                      (library-name->href (attlist-ref attlist 'name) n-strip))))
+                      (library-name->href (attlist-ref attlist 'name)))))
      . ,(lambda (tag . library-names)
           `(dt ,@(list-intersperse library-names " "))))
     (documentation *PREORDER*
                    . ,(lambda (tag . stexi)
                         `(dd ,@(stexi->shtml stexi))))))
 
-(define (library-name->href name n-strip)
-  (let ((uri-path (append (library-name->path (drop name n-strip))
+(define (library-name->href name)
+  (let ((uri-path (append (library-name->path name)
                           (list index-filename))))
     `(a (^ (href ,(uri->string (make-uri #f #f uri-path #f #f))))
         ,(fmt #f name))))
@@ -206,7 +233,7 @@
 
 ;; HTML template
 
-(define (wrap-html title heading root-path body)
+(define (wrap-html title show-title? heading root-path body)
   `(html (^ (xmlns "http://www.w3.org/1999/xhtml"))
     (head
      (title ,title)
@@ -218,10 +245,15 @@
        ");"))
     (body
      (div (^ (id "content"))
-          ,@(if heading
-                '((h1 (^ (id "heading")) ,heading))
-                '())
+          (div (^ (id "header"))
+               ,@(if heading
+                     `((h1 (^ (id "heading"))
+                           (a (^ (href ,(->namestring root-path))) ,heading)))
+                     '()))
           (div (^ (id "inner"))
+               ,@(if show-title?
+                     `((h2 (^ (class "centered")) ,title))
+                     '())
                ,@body)
           (div (^ (id "footer"))
                "powered by "
@@ -252,5 +284,5 @@
 )
 
 ;; Local Variables:
-;; scheme-indent-styles: (foof-loop (match 1))
+;; scheme-indent-styles: (foof-loop (match 1) (let-properties 2))
 ;; End:

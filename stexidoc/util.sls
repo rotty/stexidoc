@@ -1,6 +1,6 @@
 ;;; util.sls --- utility library for stexidoc
 
-;; Copyright (C) 2008, 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -31,9 +31,13 @@
           merge-fragments
           library-name->path
           library-name->pathname
-          interface-exported-names)
+          library-name->node-name
+          interface-exported-names
+          property-ref
+          let-properties)
   (import (rnrs)
           (srfi :14 char-sets)
+          (spells opt-args)
           (spells alist)
           (spells pathname)
           (spells condition)

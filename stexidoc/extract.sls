@@ -1,6 +1,6 @@
 ;;; extract.sls --- stexidoc documentation extractor
 
-;; Copyright (C) 2008, 2009, 2010 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2008-2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -37,7 +37,7 @@
           (spells format)
           (srfi :39 parameters)
           (spells condition)
-          (only (srfi :1 lists) append-map)
+          (only (srfi :1 lists) append-map append-reverse)
           (spells alist)
           (spells match)
           (only (srfi :13 strings)
@@ -56,7 +56,7 @@
           (wak fmt) ;debug
           (wak irregex)
           (wak sxml-tools sxpath)
-          (texinfo)
+          (wak texinfo)
           (stexidoc util)
           (stexidoc reader))
 

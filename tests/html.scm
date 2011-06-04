@@ -1,6 +1,6 @@
 ;;; html.scm --- Tests for the stexidoc HTML output
 
-;; Copyright (C) 2009 Andreas Rottmann <a.rottmann@gmx.at>
+;; Copyright (C) 2009, 2011 Andreas Rottmann <a.rottmann@gmx.at>
 
 ;; Author: Andreas Rottmann <a.rottmann@gmx.at>
 
@@ -23,7 +23,7 @@
 
 (import (rnrs)
         (spells testing)
-        (texinfo html)
+        (wak texinfo html)
         (stexidoc html))
 
 (define-test-suite html-tests
