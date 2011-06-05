@@ -24,7 +24,7 @@
 (import (rnrs)
         (spells testing)
         (wak texinfo html)
-        (stexidoc html))
+        (stexidoc renderer html))
 
 (define-test-suite html-tests
   "HTML output")

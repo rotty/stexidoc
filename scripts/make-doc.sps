@@ -52,9 +52,8 @@
         (stexidoc reader)
         (stexidoc util)
         (stexidoc extract)
-        (stexidoc texi)
         (stexidoc renderer texinfo)        
-        (stexidoc html))
+        (stexidoc renderer html))
 
 
 ;;; Utilities

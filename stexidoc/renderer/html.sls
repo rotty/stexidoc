@@ -1,3 +1,4 @@
+#!r6rs
 ;;; html.sls --- HTML output for stexidoc
 
 ;; Copyright (C) 2009-2011 Andreas Rottmann <a.rottmann@gmx.at>
@@ -19,9 +20,8 @@
 ;;; Commentary:
 
 ;;; Code:
-#!r6rs
 
-(library (stexidoc html)
+(library (stexidoc renderer html)
   (export stdl->shtml
           library-page
           package-toc-page
@@ -36,22 +36,21 @@
                 string-suffix?)
           (srfi :14 char-sets)
           (srfi :39 parameters)
-          (spells alist)
-          (wak foof-loop)
-          (spells pathname)
           (wak fmt)
+          (wak foof-loop)
+          (wak ssax tree-trans)
+          (wak sxml-tools sxpath)
+          (wak texinfo html)
+          (spells alist)
+          (spells pathname)
           (spells match)
           (spells condition)
           (spells tracing)
           (only (spells misc) and=> or-map)
-          (wak ssax tree-trans)
-          (wak sxml-tools sxpath)
-          (wak texinfo html)
           (ocelotl ssax-utils)
           (ocelotl net uri)
           (ocelotl net pct-coding)
           (stexidoc util)
-          (stexidoc texi)
           (stexidoc reader)
           (stexidoc extract)
           (stexidoc renderer texinfo))

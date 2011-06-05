@@ -24,7 +24,7 @@
 (import (rnrs)
         (only (srfi :13) string-join)
         (wak trc-testing)
-        (stexidoc texi)
+        (stexidoc renderer texinfo)
         (stexidoc extract))
 
 (define (line-port . lines)
